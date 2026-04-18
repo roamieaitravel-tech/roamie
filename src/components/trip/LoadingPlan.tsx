@@ -19,26 +19,26 @@ const steps = [
   {
     id: "analyze",
     icon: Sparkles,
-    title: "AI analyzing best routes",
+    title: "Analyzing routes & deals",
   },
   {
     id: "build",
     icon: Building,
-    title: "Building your itinerary",
+    title: "Crafting your itinerary",
   },
   {
     id: "finalize",
     icon: CheckCircle2,
-    title: "Finalizing best prices",
+    title: "Locking in the best price",
   },
 ];
 
 const messages = [
-  "Comparing 847 flight options...",
-  "Finding hidden gem hotels...",
-  "Calculating optimal route...",
-  "Checking for group discounts...",
-  "Almost there...",
+  "Comparing flight, hotel and transport bundles...",
+  "Finding local experiences that match your vibe...",
+  "Optimizing daily plans for comfort and savings...",
+  "Securing the lowest available prices now...",
+  "Almost done — preparing your complete itinerary...",
 ];
 
 export default function LoadingPlan() {
@@ -61,10 +61,11 @@ export default function LoadingPlan() {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white px-6 py-8">
-      <div className="w-full max-w-3xl rounded-[32px] border border-slate-200 bg-white p-10 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-6 py-8 backdrop-blur-sm">
+      <div className="w-full max-w-3xl rounded-[32px] border border-slate-200/70 bg-white p-10 shadow-2xl">
         <div className="mb-10">
           <p className="text-3xl font-bold text-slate-900">roamie</p>
+          <p className="mt-2 text-sm text-slate-500">AI is building your custom trip plan</p>
         </div>
 
         <div className="space-y-6">

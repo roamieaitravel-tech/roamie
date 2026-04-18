@@ -1,93 +1,108 @@
-import { OpenAI } from "openai";
+﻿import { OpenAI } from "openai";
+import { createClient } from "@/lib/supabase/server";
 
 const systemPrompt = `You are Roamie AI, the world's best budget travel planning expert.
 Your mission: Create the most value-packed trip plan possible within the given budget.
 
-Always return a valid JSON object with:
-{
-  tripSummary: {
-    destination: string,
-    duration: string,
-    totalCost: number,
-    savings: number,
-    currency: string
-  },
-  transportOptions: [
-    {
-      type: string,
-      provider: string,
-      route: string,
-      departureTime: string,
-      arrivalTime: string,
-      duration: string,
-      price: number,
-      class: string,
-      highlights: string[],
-      bookingUrl: string,
-      badge: string
-    }
-  ],
-  hotelOptions: [
-    {
-      name: string,
-      type: string,
-      location: string,
-      pricePerNight: number,
-      totalPrice: number,
-      rating: number,
-      reviewCount: number,
-      amenities: string[],
-      highlights: string[],
-      imageKeyword: string,
-      badge: string
-    }
-  ],
-  itinerary: [
-    {
-      day: number,
-      date: string,
-      title: string,
-      description: string,
-      activities: [
-        {
-          time: string,
-          title: string,
-          description: string,
-          cost: number,
-          type: string,
-          duration: string,
-          location: string
-        }
-      ],
-      meals: [
-        {
-          type: string,
-          suggestion: string,
-          estimatedCost: number,
-          isLocal: boolean
-        }
-      ],
-      transport: string,
-      estimatedDayCost: number,
-      weatherNote: string
-    }
-  ],
-  budgetBreakdown: {
-    transport: number,
-    accommodation: number,
-    food: number,
-    activities: number,
-    misc: number,
-    total: number
-  },
-  savingTips: string[],
-  bestTimeToBook: string,
-  localTips: string[],
-  packingEssentials: string[],
-  vibeMatchNote: string
-}
+Return only valid JSON. Do not include markdown or explanatory text.
 
-Be specific with real providers, realistic prices, actual locations.`;
+The JSON object must include:
+{
+  "tripSummary": {
+    "destination": string,
+    "duration": string,
+    "totalCost": number,
+    "savings": number,
+    "currency": string
+  },
+  "transportOptions": [
+    {
+      "type": string,
+      "provider": string,
+      "route": string,
+      "departureTime": string,
+      "arrivalTime": string,
+      "duration": string,
+      "price": number,
+      "class": string,
+      "highlights": [string],
+      "bookingUrl": string,
+      "badge": string
+    }
+  ],
+  "hotelOptions": [
+    {
+      "name": string,
+      "type": string,
+      "location": string,
+      "pricePerNight": number,
+      "totalPrice": number,
+      "rating": number,
+      "reviewCount": number,
+      "amenities": [string],
+      "highlights": [string],
+      "imageKeyword": string,
+      "badge": string
+    }
+  ],
+  "itinerary": [
+    {
+      "day": number,
+      "date": string,
+      "title": string,
+      "description": string,
+      "activities": [
+        {
+          "time": string,
+          "title": string,
+          "description": string,
+          "cost": number,
+          "type": string,
+          "duration": string,
+          "location": string
+        }
+      ],
+      "meals": [
+        {
+          "type": string,
+          "suggestion": string,
+          "estimatedCost": number,
+          "isLocal": boolean
+        }
+      ],
+      "transport": string,
+      "estimatedDayCost": number,
+      "weatherNote": string
+    }
+  ],
+  "budgetBreakdown": {
+    "transport": number,
+    "accommodation": number,
+    "food": number,
+    "activities": number,
+    "misc": number,
+    "total": number
+  },
+  "savingTips": [string],
+  "bestTimeToBook": string,
+  "localTips": [string],
+  "packingEssentials": [string],
+  "vibeMatchNote": string
+}`;
+
+type PlanTripBody = {
+  destination: string;
+  origin: string;
+  startDate: string;
+  endDate: string;
+  adults: number;
+  children: number;
+  budgetPerPerson: number;
+  transportTypes: string[];
+  travelStyle: string;
+  specialRequests: string;
+  tripId: string;
+};
 
 const schema = {
   destination: "string",
@@ -96,17 +111,12 @@ const schema = {
   endDate: "string",
   adults: "number",
   children: "number",
-  budget: "number",
+  budgetPerPerson: "number",
   transportTypes: "object",
   travelStyle: "string",
   specialRequests: "string",
+  tripId: "string",
 };
-
-class StreamingTextResponse extends Response {
-  constructor(body: ReadableStream<Uint8Array> | null, init?: ResponseInit) {
-    super(body, init);
-  }
-}
 
 async function parseBody(request: Request) {
   const payload = await request.json();
@@ -135,74 +145,95 @@ async function parseBody(request: Request) {
     }
   }
 
-  return payload as {
-    destination: string;
-    origin: string;
-    startDate: string;
-    endDate: string;
-    adults: number;
-    children: number;
-    budget: number;
-    transportTypes: string[];
-    travelStyle: string;
-    specialRequests: string;
-  };
+  return payload as PlanTripBody;
+}
+
+function buildPrompt(body: PlanTripBody) {
+  return `Trip request:
+Destination: ${body.destination}
+Origin: ${body.origin}
+Dates: ${body.startDate} to ${body.endDate}
+Travelers: ${body.adults} adults, ${body.children} children
+Budget per person: $${body.budgetPerPerson}
+Transport preferences: ${body.transportTypes.join(", ")}
+Travel style: ${body.travelStyle}
+Special requests: ${body.specialRequests || "None"}
+
+Return only a clean JSON object exactly matching the schema provided in the system prompt.`;
 }
 
 export async function POST(request: Request) {
   try {
     const body = await parseBody(request);
-
     const apiKey = process.env.OPENAI_API_KEY;
+
     if (!apiKey) {
-      return new Response("Missing OpenAI API key.", { status: 500 });
+      return new Response(JSON.stringify({ error: "Missing OpenAI API key." }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = await createClient();
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+
+    if (authError) {
+      return new Response(JSON.stringify({ error: authError.message }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const openai = new OpenAI({ apiKey });
+    const prompt = buildPrompt(body);
 
-    const prompt = `Trip request:
-Destination: ${body.destination}
-Origin: ${body.origin}
-Dates: ${body.startDate} to ${body.endDate}
-Travelers: ${body.adults} adults, ${body.children} children
-Budget: $${body.budget} per person
-Transport preferences: ${body.transportTypes.join(", ")}
-Travel style: ${body.travelStyle}
-Special requests: ${body.specialRequests || "None"}
-
-Return only a clean JSON object exactly matching the schema provided.`;
-
-    const stream = await openai.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: prompt }
+        { role: "user", content: prompt },
       ],
-      stream: true,
-      temperature: 0.3,
+      temperature: 0.2,
       max_tokens: 1500,
     });
 
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        for await (const chunk of stream) {
-          const content = chunk.choices[0]?.delta?.content;
-          if (content) {
-            controller.enqueue(new TextEncoder().encode(content));
-          }
-        }
-        controller.close();
-      },
-    });
+    const responseText = completion.choices?.[0]?.message?.content;
+    if (!responseText) {
+      throw new Error("OpenAI returned an empty response.");
+    }
 
-    return new Response(readableStream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-transform",
-      },
+    const aiItinerary = JSON.parse(responseText);
+
+    const transportType = body.transportTypes.length === 1 ? body.transportTypes[0] : "mixed";
+    const tripData = {
+      id: body.tripId,
+      destination: body.destination,
+      origin: body.origin,
+      start_date: body.startDate,
+      end_date: body.endDate,
+      budget: body.budgetPerPerson,
+      currency: "USD",
+      transport_type: transportType as string,
+      status: "planning",
+      ai_itinerary: aiItinerary,
+      user_id: authData?.user?.id ?? null,
+    };
+
+    const { error: insertError } = await supabase.from("trips").insert(tripData);
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+
+    return new Response(JSON.stringify({ tripId: body.tripId }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";
-    return new Response(message, { status: 400 });
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
