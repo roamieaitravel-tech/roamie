@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Send, Circle, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
 
 interface ChatWindowProps {
   open: boolean;
@@ -26,6 +26,7 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [showNotice, setShowNotice] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const groupedMessages = useMemo(() => {
@@ -46,6 +47,12 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
     }
 
     const supabase = createClient();
+    if (!supabase) {
+      setErrorMessage(getSupabaseConfigError());
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     const loadMessages = async () => {
@@ -58,8 +65,12 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
 
       if (error) {
         console.error("Error loading chat messages", error);
+        if (isMounted) {
+          setErrorMessage("Error loading chat messages.");
+        }
       } else if (isMounted && data) {
         setMessages(data);
+        setErrorMessage(null);
       }
       setLoading(false);
     };
@@ -76,7 +87,7 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
           table: "messages",
           filter: `match_id=eq.${matchId}`,
         },
-        (payload) => {
+        (payload: { new: MatchMessage }) => {
           const message = payload.new as MatchMessage;
           setMessages((current) => [...current, message]);
         }
@@ -102,6 +113,11 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
     }
 
     const supabase = createClient();
+    if (!supabase) {
+      setErrorMessage(getSupabaseConfigError());
+      return;
+    }
+
     const now = new Date().toISOString();
 
     const { error } = await supabase.from("messages").insert([
@@ -118,6 +134,7 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
 
     if (error) {
       console.error("Error sending message", error);
+      setErrorMessage("Error sending message.");
       return;
     }
 
@@ -168,6 +185,10 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
             {loading ? (
               <div className="flex h-full items-center justify-center text-slate-500">
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading messages
+              </div>
+            ) : errorMessage ? (
+              <div className="rounded-3xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-700">
+                {errorMessage}
               </div>
             ) : messages.length === 0 ? (
               <div className="text-center text-slate-500">Start the conversation and get to know your match.</div>

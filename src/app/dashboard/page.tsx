@@ -1,7 +1,8 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { getSupabaseConfigError } from "@/lib/supabase/client";
 import {
   Plane,
   DollarSign,
@@ -57,11 +58,17 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const supabase = createClient();
+
+        if (!supabase) {
+          setErrorMessage(getSupabaseConfigError());
+          return;
+        }
 
         // Get current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -142,6 +149,9 @@ export default function Dashboard() {
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+        setErrorMessage(
+          error instanceof Error ? error.message : "Error fetching dashboard data."
+        );
       } finally {
         setLoading(false);
       }
@@ -185,6 +195,12 @@ export default function Dashboard() {
 
       <main className="ml-0 md:ml-64 pt-16">
         <div className="p-6 space-y-8">
+          {errorMessage ? (
+            <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700">
+              {errorMessage}
+            </div>
+          ) : null}
+
           {/* Welcome Section */}
           <div>
             <h1 className="text-3xl font-bold text-gray-900">

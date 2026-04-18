@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   Map,
@@ -34,10 +34,17 @@ const navigationItems = [
 export default function Sidebar({ activeItem = "Dashboard" }: SidebarProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
       const supabase = createClient();
+      if (!supabase) {
+        setConfigError(getSupabaseConfigError());
+        setLoading(false);
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user ?? null);
       setLoading(false);
@@ -48,6 +55,11 @@ export default function Sidebar({ activeItem = "Dashboard" }: SidebarProps) {
 
   const handleSignOut = async () => {
     const supabase = createClient();
+    if (!supabase) {
+      setConfigError(getSupabaseConfigError());
+      return;
+    }
+
     await supabase.auth.signOut();
     window.location.href = "/";
   };
@@ -70,6 +82,8 @@ export default function Sidebar({ activeItem = "Dashboard" }: SidebarProps) {
                 <div className="h-3 bg-white/20 rounded animate-pulse" />
               </div>
             </div>
+          ) : configError ? (
+            <p className="text-xs text-orange-300 leading-5">{configError}</p>
           ) : user ? (
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">

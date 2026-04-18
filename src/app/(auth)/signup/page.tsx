@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, User, Mail, Lock, CheckCircle2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 // ============================================
@@ -69,6 +69,7 @@ const features = [
 export default function SignupPage() {
   const router = useRouter();
   const supabase = createClient();
+  const configErrorMessage = !supabase ? getSupabaseConfigError() : null;
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -95,6 +96,11 @@ export default function SignupPage() {
       setIsLoading(true);
       setGeneralError(null);
       setSuccessMessage(null);
+
+      if (!supabase) {
+        setGeneralError(getSupabaseConfigError());
+        return;
+      }
 
       const { error } = await supabase.auth.signUp({
         email: data.email,
@@ -137,6 +143,11 @@ export default function SignupPage() {
     try {
       setIsGoogleLoading(true);
       setGeneralError(null);
+
+      if (!supabase) {
+        setGeneralError(getSupabaseConfigError());
+        return;
+      }
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -270,20 +281,22 @@ export default function SignupPage() {
           )}
 
           {/* General Error Message */}
-          {generalError && (
+          {(generalError ?? configErrorMessage) && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
             >
-              <p className="text-red-600 dark:text-red-400 text-sm font-medium">{generalError}</p>
+              <p className="text-red-600 dark:text-red-400 text-sm font-medium">
+                {generalError ?? configErrorMessage}
+              </p>
             </motion.div>
           )}
 
           {/* Google Sign Up Button */}
           <button
             onClick={handleGoogleSignUp}
-            disabled={isGoogleLoading || isLoading}
+            disabled={!supabase || isGoogleLoading || isLoading}
             className="w-full flex items-center justify-center gap-2 border-2 border-[#1c1c1e] dark:border-gray-600 text-[#1c1c1e] dark:text-white py-3 rounded-full font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-6"
           >
             {isGoogleLoading ? (
@@ -484,7 +497,7 @@ export default function SignupPage() {
           {/* Create Account Button */}
           <button
             onClick={handleSubmit(onSubmit)}
-            disabled={isLoading || isGoogleLoading}
+            disabled={!supabase || isLoading || isGoogleLoading}
             className="w-full bg-[#FF6B35] text-white py-3 rounded-full font-bold text-lg hover:bg-[#ff5820] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-6"
           >
             {isLoading ? (

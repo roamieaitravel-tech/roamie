@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Calendar, CheckCircle2, DollarSign, Loader2, MapPin, Search, ShieldCheck, X, MessageSquare, Eye } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
 import Sidebar from "@/components/dashboard/Sidebar";
 import MatchCard, { MatchProfile } from "@/components/matching/MatchCard";
 import VibeCard from "@/components/matching/VibeCard";
@@ -32,6 +32,15 @@ interface ConnectionItem {
   matchedAt: string;
 }
 
+interface VibeMatchRow {
+  id: string;
+  trip_id: string | null;
+  user_id_1: string;
+  user_id_2: string;
+  status: "pending" | "accepted" | "declined";
+  updated_at: string;
+}
+
 const DESTINATIONS = ["Bali", "Lisbon", "Tokyo", "Santorini", "Cape Town"];
 
 const formatDate = (date: Date) => date.toISOString().slice(0, 10);
@@ -55,11 +64,28 @@ export default function MatchesPage() {
   const [budgetMax, setBudgetMax] = useState(1500);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const getBrowserSupabase = () => {
+    const supabase = createClient();
+
+    if (!supabase) {
+      setErrorMessage(getSupabaseConfigError());
+      return null;
+    }
+
+    return supabase;
+  };
+
   useEffect(() => {
     const loadUser = async () => {
-      const supabase = createClient();
+      const supabase = getBrowserSupabase();
       setConnectionsLoading(true);
       setDiscoverLoading(true);
+
+      if (!supabase) {
+        setConnectionsLoading(false);
+        setDiscoverLoading(false);
+        return;
+      }
 
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
@@ -126,7 +152,12 @@ export default function MatchesPage() {
 
   const loadConnections = async (currentUserId: string) => {
     setConnectionsLoading(true);
-    const supabase = createClient();
+    const supabase = getBrowserSupabase();
+
+    if (!supabase) {
+      setConnectionsLoading(false);
+      return;
+    }
 
     const { data: matchesData } = await supabase
       .from("vibe_matches")
@@ -141,9 +172,11 @@ export default function MatchesPage() {
       return;
     }
 
+    const typedMatchesData = (matchesData ?? []) as VibeMatchRow[];
+
     const otherUserIds = Array.from(
       new Set(
-        matchesData.flatMap((match) => [match.user_id_1 as string, match.user_id_2 as string]).filter((id) => id !== currentUserId)
+        typedMatchesData.flatMap((match) => [match.user_id_1, match.user_id_2]).filter((id) => id !== currentUserId)
       )
     );
 
@@ -152,25 +185,26 @@ export default function MatchesPage() {
       .select("id,user_id,full_name,country,verified,vibe_tags,bio")
       .in("user_id", otherUserIds);
 
-    const profileById = new Map(profilesData?.map((item) => [item.user_id, item]) ?? []);
+    const typedProfilesData = (profilesData ?? []) as ProfileSummary[];
+    const profileById = new Map(typedProfilesData.map((item) => [item.user_id, item]));
 
-    const connections: ConnectionItem[] = matchesData.map((match) => {
+    const connections: ConnectionItem[] = typedMatchesData.map((match) => {
       const otherId = match.user_id_1 === currentUserId ? match.user_id_2 : match.user_id_1;
       return {
-        id: match.id as string,
-        tripId: match.trip_id as string | null,
-        userId: otherId as string,
-        otherUser: profileById.get(otherId as string) ?? {
+        id: match.id,
+        tripId: match.trip_id,
+        userId: otherId,
+        otherUser: profileById.get(otherId) ?? {
           id: "",
-          user_id: otherId as string,
+          user_id: otherId,
           full_name: "Traveler",
           country: null,
           verified: false,
         },
-        status: match.status as "pending" | "accepted" | "declined",
+        status: match.status,
         direction: match.user_id_1 === currentUserId ? "sent" : "received",
         lastMessage: "",
-        matchedAt: match.updated_at as string,
+        matchedAt: match.updated_at,
       };
     });
 
@@ -216,7 +250,11 @@ export default function MatchesPage() {
   };
 
   const handleAccept = async (item: ConnectionItem) => {
-    const supabase = createClient();
+    const supabase = getBrowserSupabase();
+    if (!supabase) {
+      return;
+    }
+
     await supabase.from("vibe_matches").update({ status: "accepted" }).eq("id", item.id);
     if (userId) {
       await loadConnections(userId);
@@ -224,7 +262,11 @@ export default function MatchesPage() {
   };
 
   const handleDecline = async (item: ConnectionItem) => {
-    const supabase = createClient();
+    const supabase = getBrowserSupabase();
+    if (!supabase) {
+      return;
+    }
+
     await supabase.from("vibe_matches").update({ status: "declined" }).eq("id", item.id);
     if (userId) {
       await loadConnections(userId);
@@ -232,7 +274,11 @@ export default function MatchesPage() {
   };
 
   const handleCancel = async (item: ConnectionItem) => {
-    const supabase = createClient();
+    const supabase = getBrowserSupabase();
+    if (!supabase) {
+      return;
+    }
+
     await supabase.from("vibe_matches").delete().eq("id", item.id);
     if (userId) {
       await loadConnections(userId);

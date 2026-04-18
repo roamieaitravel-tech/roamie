@@ -15,7 +15,7 @@ import {
   Anchor,
   Loader2,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
 
 interface TripData {
   id: string;
@@ -49,6 +49,10 @@ function ResultsPageContent() {
     const fetchTrip = async () => {
       try {
         const supabase = createClient();
+        if (!supabase) {
+          throw new Error(getSupabaseConfigError());
+        }
+
         const { data, error: fetchError } = await supabase
           .from("trips")
           .select("*")

@@ -4,7 +4,7 @@ import { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, ChevronLeft, Loader2, Upload } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
 import { TravelStyle } from "@/types/database";
 
 // ============================================
@@ -285,6 +285,7 @@ const COUNTRIES = [
 export default function OnboardingPage() {
   const router = useRouter();
   const supabase = createClient();
+  const configErrorMessage = !supabase ? getSupabaseConfigError() : null;
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -385,6 +386,11 @@ export default function OnboardingPage() {
       setIsLoading(true);
       setError(null);
 
+      if (!supabase) {
+        setError(getSupabaseConfigError());
+        return;
+      }
+
       // Get current user
       const { data: authData } = await supabase.auth.getUser();
       if (!authData.user) {
@@ -439,6 +445,8 @@ export default function OnboardingPage() {
       setIsLoading(false);
     }
   };
+
+  const activeErrorMessage = error ?? configErrorMessage;
 
   // ============================================
   // RENDER STEP CONTENT
@@ -530,9 +538,9 @@ export default function OnboardingPage() {
                 </label>
               </div>
 
-              {error && (
+              {activeErrorMessage && (
                 <p className="text-red-600 text-sm font-medium mb-4">
-                  {error}
+                  {activeErrorMessage}
                 </p>
               )}
 
@@ -612,9 +620,9 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              {error && (
+              {activeErrorMessage && (
                 <p className="text-red-600 text-sm font-medium mb-4">
-                  {error}
+                  {activeErrorMessage}
                 </p>
               )}
 
@@ -684,9 +692,9 @@ export default function OnboardingPage() {
                 ))}
               </div>
 
-              {error && (
+              {activeErrorMessage && (
                 <p className="text-red-600 text-sm font-medium mb-4">
-                  {error}
+                  {activeErrorMessage}
                 </p>
               )}
 
@@ -747,9 +755,9 @@ export default function OnboardingPage() {
                 ))}
               </div>
 
-              {error && (
+              {activeErrorMessage && (
                 <p className="text-red-600 text-sm font-medium mb-4">
-                  {error}
+                  {activeErrorMessage}
                 </p>
               )}
 
@@ -763,7 +771,7 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   onClick={handleFinish}
-                  disabled={isLoading}
+                  disabled={!supabase || isLoading}
                   className="flex-1 bg-[#FF6B35] text-white py-4 rounded-full font-bold text-lg hover:bg-[#ff5820] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isLoading ? (

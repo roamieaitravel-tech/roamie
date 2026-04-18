@@ -5,7 +5,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 const PUBLIC_ROUTES = ["/", "/login", "/signup", "/onboarding", "/-p"];
 const PROTECTED_ROUTES = ["/dashboard", "/plan", "/results", "/matches", "/trips", "/profile"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Update session to refresh auth tokens
   let response = await updateSession(request);
   const pathname = request.nextUrl.pathname;

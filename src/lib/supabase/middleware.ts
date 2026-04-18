@@ -12,9 +12,8 @@ export const updateSession = async (request: NextRequest) => {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY"
-    );
+    // Keep public routes alive even when auth env vars are not configured yet.
+    return response;
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
