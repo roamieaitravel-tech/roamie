@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { updateSession } from "@/lib/supabase/proxy";
 
 // Define public and protected routes
 const PUBLIC_ROUTES = ["/", "/login", "/signup", "/onboarding", "/-p"];
 const PROTECTED_ROUTES = ["/dashboard", "/plan", "/results", "/matches", "/trips", "/profile"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Update session to refresh auth tokens
   const response = await updateSession(request);
   const pathname = request.nextUrl.pathname;
