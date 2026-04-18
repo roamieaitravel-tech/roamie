@@ -39,7 +39,7 @@ export default function Sidebar({ activeItem = "Dashboard" }: SidebarProps) {
     const getUser = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      setUser(user ?? null);
       setLoading(false);
     };
 
@@ -82,15 +82,15 @@ export default function Sidebar({ activeItem = "Dashboard" }: SidebarProps) {
                     className="rounded-full"
                   />
                 ) : (
-                  user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0).toUpperCase()
+                  user.user_metadata?.full_name?.charAt(0) || (user.email ?? "").charAt(0).toUpperCase()
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
-                  {user.user_metadata?.full_name || "User"}
+                  {user.user_metadata?.full_name ?? "Traveler"}
                 </p>
                 <p className="text-xs text-white/60 truncate">
-                  {user.email}
+                  {user.email ?? ""}
                 </p>
               </div>
             </div>
