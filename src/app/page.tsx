@@ -117,7 +117,7 @@ export default function LandingPage() {
             </motion.button>
 
             <motion.a
-              href="/auth/login"
+              href="/login"
               style={{ color: navTextColor }}
               className="hidden sm:block text-sm font-medium transition-colors duration-300 hover:text-[#FF6B35]"
             >
@@ -125,7 +125,7 @@ export default function LandingPage() {
             </motion.a>
 
             <motion.a
-              href="/auth/signup"
+              href="/signup"
               className="hidden sm:block px-6 py-2 bg-[#FF6B35] text-white rounded-full font-semibold text-sm hover:shadow-lg transition-all duration-300"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -169,13 +169,13 @@ export default function LandingPage() {
             ))}
             <div className="pt-3 space-y-2 border-t border-gray-200">
               <a
-                href="/auth/login"
+                href="/login"
                 className="block py-2 font-medium text-gray-900 hover:text-[#FF6B35]"
               >
                 Sign in
               </a>
               <a
-                href="/auth/signup"
+                href="/signup"
                 className="block px-6 py-2 bg-[#FF6B35] text-white rounded-full font-semibold text-center"
               >
                 Get Started
@@ -255,7 +255,7 @@ export default function LandingPage() {
             className="flex flex-col sm:flex-row gap-4 mb-12"
           >
             <motion.a
-              href="/auth/signup"
+              href="/signup"
               className="px-8 py-3 md:px-10 md:py-4 bg-[#FF6B35] text-white font-bold rounded-full text-base md:text-lg shadow-xl hover:shadow-2xl transition-shadow duration-300"
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
