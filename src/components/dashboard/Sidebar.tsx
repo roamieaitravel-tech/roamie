@@ -23,12 +23,11 @@ interface SidebarProps {
 
 const navigationItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Map, label: "My Trips", href: "/dashboard/trips" },
-  { icon: Search, label: "Plan Trip", href: "/dashboard/plan" },
-  { icon: Users, label: "Matches", href: "/dashboard/matches" },
-  { icon: MessageSquare, label: "Messages", href: "/dashboard/messages" },
-  { icon: Wallet, label: "Budget", href: "/dashboard/budget" },
-  { icon: Bell, label: "Alerts", href: "/dashboard/alerts" },
+  { icon: Map, label: "My Trips", href: "/trips" },
+  { icon: Search, label: "Plan Trip", href: "/ai-plan" },
+  { icon: Users, label: "Matches", href: "/matches" },
+  { icon: MessageSquare, label: "Messages", href: "/matches" },
+  { icon: Wallet, label: "Explore", href: "/plan" },
 ];
 
 export default function Sidebar({ activeItem = "Dashboard" }: SidebarProps) {
@@ -139,15 +138,15 @@ export default function Sidebar({ activeItem = "Dashboard" }: SidebarProps) {
 
           <div className="space-y-1">
             <a
-              href="/dashboard/settings"
+              href="/profile"
               className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${
-                activeItem === "Settings"
+                activeItem === "Profile"
                   ? "bg-[#FF6B35] text-white"
                   : "text-white/60 hover:bg-white/10 hover:text-white"
               }`}
             >
               <Settings className="w-5 h-5" />
-              <span className="text-sm font-medium">Settings</span>
+              <span className="text-sm font-medium">Profile</span>
             </a>
 
             <button
