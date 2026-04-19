@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
-  DollarSign,
   Plane,
   Hotel,
   MapPin,
   Users,
-  Calendar,
   Shield,
   Check,
   AlertCircle,
@@ -194,10 +191,6 @@ export default function CheckoutPage() {
               <ReviewStep
                 key="review"
                 bookingSummary={bookingSummary}
-                subtotal={subtotal}
-                insurance={insurance}
-                tax={tax}
-                total={total}
                 onNext={() => setStep("details")}
               />
             )}
@@ -350,17 +343,9 @@ export default function CheckoutPage() {
 
 function ReviewStep({
   bookingSummary,
-  subtotal,
-  insurance,
-  tax,
-  total,
   onNext,
 }: {
   bookingSummary: BookingSummary;
-  subtotal: number;
-  insurance: number;
-  tax: number;
-  total: number;
   onNext: () => void;
 }) {
   const [insuranceAdded, setInsuranceAdded] = useState(false);
@@ -883,7 +868,7 @@ function ConfirmationStep({ total }: { total: number }) {
         transition={{ delay: 0.4 }}
         className="bg-white rounded-xl shadow-lg p-8 space-y-6"
       >
-        <h3 className="text-xl font-bold text-gray-900">What's Next?</h3>
+        <h3 className="text-xl font-bold text-gray-900">What&apos;s Next?</h3>
 
         <div className="space-y-4">
           {[

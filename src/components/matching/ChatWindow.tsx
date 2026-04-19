@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Send, Circle, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Send, Loader2 } from "lucide-react";
 import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
 
 interface ChatWindowProps {

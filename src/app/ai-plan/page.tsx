@@ -15,9 +15,6 @@ import {
   Heart,
   Plane,
   Hotel,
-  Train,
-  Waves,
-  MessageCircle,
   ChevronDown,
   Home,
   Settings,
@@ -563,7 +560,7 @@ export default function AIPlanPage() {
               </h3>
               <p className="text-gray-600 max-w-sm mx-auto">
                 Describe your dream destination, dates, budget, and travel style
-                in the chat. I'll create the perfect itinerary for you.
+                in the chat. I&apos;ll create the perfect itinerary for you.
               </p>
             </motion.div>
           </div>

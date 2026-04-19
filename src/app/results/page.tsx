@@ -2,12 +2,11 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   ArrowLeft,
   CheckCircle2,
   Heart,
-  MapPin,
   Share2,
   Star,
   Plane,
@@ -16,6 +15,67 @@ import {
   Loader2,
 } from "lucide-react";
 import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
+
+interface TransportOption {
+  type: string;
+  price: number;
+  duration: string;
+  company?: string;
+  provider?: string;
+  route?: string;
+  departure: string;
+  departureTime?: string;
+  arrival: string;
+  arrivalTime?: string;
+  badge?: string;
+}
+
+interface HotelOption {
+  name: string;
+  price?: number;
+  pricePerNight?: number;
+  rating: number;
+  image: string;
+  amenities: string[];
+  imageKeyword?: string;
+  badge?: string;
+  reviewCount?: number;
+  location?: string;
+}
+
+interface Activity {
+  time?: string;
+  title?: string;
+  description?: string;
+  duration?: string;
+  location?: string;
+  cost?: number;
+}
+
+interface ItineraryDay {
+  day: number;
+  title: string;
+  description: string;
+  activities?: (string | Activity)[];
+  date?: string;
+  meals?: Meal[];
+  estimatedDayCost?: number;
+}
+
+interface Meal {
+  type: string;
+  suggestion: string;
+  estimatedCost: number;
+}
+
+interface AiItinerary {
+  transport?: TransportOption[];
+  transportOptions?: TransportOption[];
+  hotels?: HotelOption[];
+  hotelOptions?: HotelOption[];
+  itinerary?: ItineraryDay[];
+  budgetBreakdown?: Record<string, number>;
+}
 
 interface TripData {
   id: string;
@@ -27,7 +87,7 @@ interface TripData {
   currency: string;
   transport_type: string;
   status: string;
-  ai_itinerary: any; // JSON object from OpenAI
+  ai_itinerary: AiItinerary;
   user_id: string | null;
 }
 
@@ -135,7 +195,7 @@ function ResultsPageContent() {
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-6">Transportation</h2>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {transportOptions.map((option: any, index: number) => (
+              {transportOptions.map((option: TransportOption, index: number) => (
                 <div key={index} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -171,12 +231,14 @@ function ResultsPageContent() {
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-6">Accommodation</h2>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {hotelOptions.map((hotel: any, index: number) => (
+              {hotelOptions.map((hotel: HotelOption, index: number) => (
                 <div key={index} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="aspect-video mb-4 overflow-hidden rounded-xl bg-slate-100">
-                    <img
+                    <Image
                       src={hotel.imageKeyword ? `https://source.unsplash.com/400x300/?${hotel.imageKeyword}` : "https://source.unsplash.com/400x300/?hotel"}
                       alt={hotel.name}
+                      width={400}
+                      height={300}
                       className="h-full w-full object-cover"
                     />
                   </div>
@@ -216,7 +278,7 @@ function ResultsPageContent() {
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-6">Your Itinerary</h2>
             <div className="space-y-6">
-              {itinerary.map((day: any, index: number) => (
+              {itinerary.map((day: ItineraryDay, index: number) => (
                 <div key={index} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-semibold">Day {day.day}: {day.title}</h3>
@@ -225,29 +287,32 @@ function ResultsPageContent() {
                   <p className="text-slate-600 mb-6">{day.description}</p>
 
                   <div className="space-y-4">
-                    {day.activities?.map((activity: any, actIndex: number) => (
+                    {day.activities?.map((activity: string | Activity, actIndex: number) => {
+                      const act = typeof activity === "string" ? { title: activity } : activity;
+                      return (
                       <div key={actIndex} className="flex gap-4">
                         <div className="flex-shrink-0 w-20 text-sm font-medium text-slate-500">
-                          {activity.time}
+                          {act.time}
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-semibold">{activity.title}</h4>
-                          <p className="text-sm text-slate-600">{activity.description}</p>
+                          <h4 className="font-semibold">{act.title}</h4>
+                          <p className="text-sm text-slate-600">{act.description}</p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
-                            <span>{activity.duration}</span>
-                            <span>{activity.location}</span>
-                            <span>${activity.cost}</span>
+                            <span>{act.duration}</span>
+                            <span>{act.location}</span>
+                            {typeof activity !== "string" && activity.cost && <span>${activity.cost}</span>}
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {day.meals && day.meals.length > 0 && (
                     <div className="mt-6 pt-6 border-t border-slate-200">
                       <h4 className="font-semibold mb-3">Meals</h4>
                       <div className="grid gap-2 sm:grid-cols-3">
-                        {day.meals.map((meal: any, mealIndex: number) => (
+                        {day.meals.map((meal: Meal, mealIndex: number) => (
                           <div key={mealIndex} className="text-sm">
                             <span className="font-medium">{meal.type}:</span> {meal.suggestion} (${meal.estimatedCost})
                           </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Calendar, CheckCircle2, DollarSign, Loader2, MapPin, Search, ShieldCheck, X, MessageSquare, Eye } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { CheckCircle2, Search, ShieldCheck, MessageSquare, Eye } from "lucide-react";
 import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
 import Sidebar from "@/components/dashboard/Sidebar";
 import MatchCard, { MatchProfile } from "@/components/matching/MatchCard";
@@ -75,82 +75,7 @@ export default function MatchesPage() {
     return supabase;
   };
 
-  useEffect(() => {
-    const loadUser = async () => {
-      const supabase = getBrowserSupabase();
-      setConnectionsLoading(true);
-      setDiscoverLoading(true);
-
-      if (!supabase) {
-        setConnectionsLoading(false);
-        setDiscoverLoading(false);
-        return;
-      }
-
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        setErrorMessage("Unable to load your account. Please sign in again.");
-        setConnectionsLoading(false);
-        setDiscoverLoading(false);
-        return;
-      }
-
-      setUserId(user.id);
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id,user_id,full_name,country,verified,vibe_tags,travel_style,preferred_destinations,budget_range,bio")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (profileData) {
-        setProfile(profileData);
-        if (profileData.preferred_destinations?.length) {
-          setDestination(profileData.preferred_destinations[0]);
-        }
-        if (profileData.budget_range) {
-          setBudgetMax(profileData.budget_range.max);
-        }
-      }
-
-      await fetchMatches(destination, startDate, endDate, budgetMax);
-      await loadConnections(user.id);
-      setConnectionsLoading(false);
-    };
-
-    loadUser();
-  }, []);
-
-  const fetchMatches = async (destinationValue: string, start: string, end: string, maxBudget: number) => {
-    setDiscoverLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const params = new URLSearchParams({
-        destination: destinationValue,
-        startDate: start,
-        endDate: end,
-        budgetMin: "400",
-        budgetMax: maxBudget.toString(),
-      });
-
-      const response = await fetch(`/api/find-matches?${params.toString()}`);
-      const payload = await response.json();
-      if (!response.ok || payload.error) {
-        setErrorMessage(payload.error || "Unable to load discover matches.");
-        setMatches([]);
-      } else {
-        setMatches(payload.results ?? []);
-      }
-    } catch (error) {
-      setErrorMessage("Unable to load discover matches.");
-      setMatches([]);
-    } finally {
-      setDiscoverLoading(false);
-    }
-  };
-
-  const loadConnections = async (currentUserId: string) => {
+  const loadConnections = useCallback(async (currentUserId: string) => {
     setConnectionsLoading(true);
     const supabase = getBrowserSupabase();
 
@@ -212,6 +137,81 @@ export default function MatchesPage() {
     setPendingReceived(connections.filter((item) => item.status === "pending" && item.direction === "received"));
     setConnected(connections.filter((item) => item.status === "accepted"));
     setConnectionsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const supabase = getBrowserSupabase();
+      setConnectionsLoading(true);
+      setDiscoverLoading(true);
+
+      if (!supabase) {
+        setConnectionsLoading(false);
+        setDiscoverLoading(false);
+        return;
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        setErrorMessage("Unable to load your account. Please sign in again.");
+        setConnectionsLoading(false);
+        setDiscoverLoading(false);
+        return;
+      }
+
+      setUserId(user.id);
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id,user_id,full_name,country,verified,vibe_tags,travel_style,preferred_destinations,budget_range,bio")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (profileData) {
+        setProfile(profileData);
+        if (profileData.preferred_destinations?.length) {
+          setDestination(profileData.preferred_destinations[0]);
+        }
+        if (profileData.budget_range) {
+          setBudgetMax(profileData.budget_range.max);
+        }
+      }
+
+      await fetchMatches(destination, startDate, endDate, budgetMax);
+      await loadConnections(user.id);
+      setConnectionsLoading(false);
+    };
+
+    loadUser();
+  }, [destination, startDate, endDate, budgetMax]);
+
+  const fetchMatches = async (destinationValue: string, start: string, end: string, maxBudget: number) => {
+    setDiscoverLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const params = new URLSearchParams({
+        destination: destinationValue,
+        startDate: start,
+        endDate: end,
+        budgetMin: "400",
+        budgetMax: maxBudget.toString(),
+      });
+
+      const response = await fetch(`/api/find-matches?${params.toString()}`);
+      const payload = await response.json();
+      if (!response.ok || payload.error) {
+        setErrorMessage(payload.error || "Unable to load discover matches.");
+        setMatches([]);
+      } else {
+        setMatches(payload.results ?? []);
+      }
+    } catch {
+      setErrorMessage("Unable to load discover matches.");
+      setMatches([]);
+    } finally {
+      setDiscoverLoading(false);
+    }
   };
 
   const handleFilter = async () => {

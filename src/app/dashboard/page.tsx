@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseConfigError } from "@/lib/supabase/client";
 import {
@@ -207,7 +208,7 @@ export default function Dashboard() {
               {getGreeting()}, {user?.user_metadata?.full_name || "Traveler"}!
             </h1>
             <p className="text-gray-600 mt-2">
-              Here's what's happening with your travels
+              Here&apos;s what&apos;s happening with your travels
             </p>
           </div>
 
@@ -308,9 +309,11 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
                         {match.avatar_url ? (
-                          <img
+                          <Image
                             src={match.avatar_url}
                             alt={match.name}
+                            width={48}
+                            height={48}
                             className="w-12 h-12 rounded-full"
                           />
                         ) : (

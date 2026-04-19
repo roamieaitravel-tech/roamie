@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, ChangeEvent, FormEvent } from "react";
+import { useState, ChangeEvent } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, ChevronLeft, Loader2, Upload } from "lucide-react";
@@ -520,9 +521,11 @@ export default function OnboardingPage() {
                     }`}
                   >
                     {formData.profilePhotoUrl ? (
-                      <img
+                      <Image
                         src={formData.profilePhotoUrl}
                         alt="Profile"
+                        width={96}
+                        height={96}
                         className="w-24 h-24 rounded-full object-cover"
                       />
                     ) : (
@@ -726,7 +729,7 @@ export default function OnboardingPage() {
                 🎭
               </motion.div>
               <h2 className="text-3xl font-bold text-[#1c1c1e] mb-2">
-                What's your travel vibe?
+                What&apos;s your travel vibe?
               </h2>
               <p className="text-gray-600 mb-8">
                 Pick all that apply (up to 6)

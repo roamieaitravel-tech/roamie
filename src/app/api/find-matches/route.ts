@@ -20,16 +20,6 @@ interface ProfileRow {
   bio?: string | null;
 }
 
-interface TripRow {
-  id: string;
-  user_id: string;
-  destination: string;
-  start_date: string;
-  end_date: string;
-  budget: number;
-  is_public?: boolean | null;
-}
-
 function formatDateLabel(startDate: string, endDate: string) {
   const start = parseISO(startDate);
   const end = parseISO(endDate);

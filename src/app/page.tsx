@@ -3,17 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Play,
   ChevronDown,
   Menu,
   X,
-  Star,
-  ArrowRight,
-  CheckCircle,
-  Share2,
-  Heart,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -84,8 +79,7 @@ export default function LandingPage() {
               />
             </div>
             <span
-              style={{ color: navTextColor as any }}
-              className="font-bold text-xl transition-colors duration-300"
+              style={{ color: navTextColor as any }} className="font-bold text-xl transition-colors duration-300"
             >
               roamie
             </span>
@@ -97,7 +91,7 @@ export default function LandingPage() {
               <motion.a
                 key={item}
                 href={`#${item.toLowerCase().replace(/\s+/g, "-")}`}
-              style={{ color: navTextColor as any }}
+                style={{ color: navTextColor }}
                 className="text-sm font-medium transition-colors duration-300 hover:text-[#FF6B35]"
                 whileHover={{ y: -2 }}
               >
@@ -124,7 +118,7 @@ export default function LandingPage() {
 
             <motion.a
               href="/auth/login"
-              style={{ color: navTextColor as any }}
+              style={{ color: navTextColor }}
               className="hidden sm:block text-sm font-medium transition-colors duration-300 hover:text-[#FF6B35]"
             >
               Sign in
@@ -346,3 +340,4 @@ export default function LandingPage() {
     </div>
   );
 }
+

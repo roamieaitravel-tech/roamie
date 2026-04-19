@@ -7,14 +7,13 @@ const PROTECTED_ROUTES = ["/dashboard", "/plan", "/results", "/matches", "/trips
 
 export async function proxy(request: NextRequest) {
   // Update session to refresh auth tokens
-  let response = await updateSession(request);
+  const response = await updateSession(request);
   const pathname = request.nextUrl.pathname;
 
   // Check if route is protected
   const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
     pathname.startsWith(route)
   );
-  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname === route);
 
   // If it's a protected route, check authentication
   if (isProtectedRoute) {
