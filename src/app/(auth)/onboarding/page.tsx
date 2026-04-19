@@ -504,7 +504,7 @@ export default function OnboardingPage() {
                 placeholder="Enter your first name"
                 value={formData.firstName}
                 onChange={(e) => handleInputChange("firstName", e.target.value)}
-                className="w-full px-6 py-4 text-xl border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none mb-6 text-center"
+                className="w-full px-6 py-4 text-xl border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none mb-6 text-center bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700"
               />
 
               {/* Profile Photo Upload */}
@@ -580,11 +580,11 @@ export default function OnboardingPage() {
                   onChange={(e) =>
                     handleInputChange("homeCountry", e.target.value)
                   }
-                  className="w-full px-6 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none text-lg bg-white"
+                  className="w-full px-6 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none text-lg bg-white text-gray-900 dark:bg-gray-800 dark:text-white dark:border-gray-700"
                 >
                   <option value="">Select your country</option>
                   {COUNTRIES.map((country) => (
-                    <option key={country} value={country}>
+                    <option key={country} value={country} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                       {country}
                     </option>
                   ))}
@@ -603,7 +603,7 @@ export default function OnboardingPage() {
                   onChange={(e) =>
                     handleInputChange("homeCity", e.target.value)
                   }
-                  className="w-full px-6 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none text-lg"
+                  className="w-full px-6 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none text-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700"
                 />
               </div>
 
@@ -619,7 +619,7 @@ export default function OnboardingPage() {
                   onChange={(e) =>
                     handleInputChange("homeAirport", e.target.value)
                   }
-                  className="w-full px-6 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none text-lg"
+                  className="w-full px-6 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none text-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700"
                 />
               </div>
 

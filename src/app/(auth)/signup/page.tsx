@@ -102,7 +102,7 @@ export default function SignupPage() {
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
+      const { error: signupError, data: authData } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
@@ -112,9 +112,30 @@ export default function SignupPage() {
         },
       });
 
-      if (error) {
-        setGeneralError(error.message || "Failed to create account");
+      if (signupError) {
+        setGeneralError(signupError.message || "Failed to create account");
         return;
+      }
+
+      // Create initial profile for user
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert([
+            {
+              user_id: authData.user.id,
+              full_name: data.fullName,
+              email: data.email,
+              onboarding_completed: false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ]);
+
+        if (profileError) {
+          console.error("Profile creation error:", profileError);
+          // Continue anyway - user can still proceed to onboarding
+        }
       }
 
       setSuccessMessage(
@@ -152,18 +173,23 @@ export default function SignupPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/onboarding`,
+          redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/onboarding`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
 
       if (error) {
         setGeneralError(error.message || "Failed to sign up with Google");
+        setIsGoogleLoading(false);
       }
+      // Note: If successful, browser will redirect - don't set loading to false
     } catch (err) {
       setGeneralError(
         err instanceof Error ? err.message : "An unexpected error occurred"
       );
-    } finally {
       setIsGoogleLoading(false);
     }
   };
@@ -333,10 +359,10 @@ export default function SignupPage() {
                 id="fullName"
                 type="text"
                 placeholder="John Doe"
-                className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none transition-colors ${
+                className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white focus:outline-none transition-colors ${
                   errors.fullName
                     ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800"
                 }`}
               />
             </div>
@@ -362,10 +388,10 @@ export default function SignupPage() {
                 id="email"
                 type="email"
                 placeholder="you@example.com"
-                className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none transition-colors ${
+                className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white focus:outline-none transition-colors ${
                   errors.email
                     ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800"
                 }`}
               />
             </div>
@@ -391,10 +417,10 @@ export default function SignupPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
-                className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none transition-colors ${
+                className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white focus:outline-none transition-colors ${
                   errors.password
                     ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800"
                 }`}
               />
               <button
@@ -431,10 +457,10 @@ export default function SignupPage() {
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="••••••••"
-                className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none transition-colors ${
+                className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white focus:outline-none transition-colors ${
                   errors.confirmPassword
                     ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800"
                 }`}
               />
               <button

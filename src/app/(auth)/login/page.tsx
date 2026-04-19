@@ -127,18 +127,23 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/dashboard`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
 
       if (error) {
         setGeneralError(error.message || "Failed to sign in with Google");
+        setIsGoogleLoading(false);
       }
+      // Note: If successful, browser will redirect - don't set loading to false
     } catch (err) {
       setGeneralError(
         err instanceof Error ? err.message : "An unexpected error occurred"
       );
-    } finally {
       setIsGoogleLoading(false);
     }
   };
@@ -299,10 +304,10 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="you@example.com"
-                className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none transition-colors ${
+                className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white focus:outline-none transition-colors ${
                   errors.email
                     ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800"
                 }`}
               />
             </div>
@@ -328,10 +333,10 @@ export default function LoginPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
-                className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none transition-colors ${
+                className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white focus:outline-none transition-colors ${
                   errors.password
                     ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35] bg-white dark:bg-gray-800"
                 }`}
               />
               <button
