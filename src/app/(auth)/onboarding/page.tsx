@@ -156,7 +156,6 @@ const COUNTRIES = [
   "Hong Kong",
   "Hungary",
   "Iceland",
-  "India",
   "Indonesia",
   "Iran",
   "Iraq",
@@ -595,7 +594,7 @@ export default function OnboardingPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. New York, Mumbai, London"
+                  placeholder="e.g. New York, Tokyo, London"
                   value={formData.homeCity}
                   onChange={(e) =>
                     handleInputChange("homeCity", e.target.value)
@@ -726,7 +725,7 @@ export default function OnboardingPage() {
                 🎭
               </motion.div>
               <h2 className="text-3xl font-bold text-[#1c1c1e] mb-2">
-                What's your travel vibe?
+                What&apos;s your travel vibe?
               </h2>
               <p className="text-gray-600 mb-8">
                 Pick all that apply (up to 6)
