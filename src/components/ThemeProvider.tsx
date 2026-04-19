@@ -12,7 +12,10 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>(() => {
+    // Initial theme set to light, will be updated in useEffect to avoid SSR mismatch
+    return "light";
+  });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -22,7 +25,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setTheme(savedTheme);
     } else {
       // Check system preference
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
       setTheme(systemTheme);
     }
     setMounted(true);
