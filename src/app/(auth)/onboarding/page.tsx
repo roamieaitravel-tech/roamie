@@ -594,7 +594,7 @@ export default function OnboardingPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. New York, London, Tokyo"
+                  placeholder="e.g. New York, Tokyo, London"
                   value={formData.homeCity}
                   onChange={(e) =>
                     handleInputChange("homeCity", e.target.value)
