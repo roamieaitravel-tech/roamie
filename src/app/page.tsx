@@ -252,16 +252,17 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.75 }}
-            className="flex flex-col sm:flex-row gap-4 mb-12"
+            className="flex flex-col sm:flex-row gap-4 mb-12 justify-center items-center sm:justify-start"
           >
-            <motion.a
-              href="/signup"
-              className="px-8 py-3 md:px-10 md:py-4 bg-[#FF6B35] text-white font-bold rounded-full text-base md:text-lg shadow-xl hover:shadow-2xl transition-shadow duration-300"
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              Start Planning Free
-            </motion.a>
+            <Link href="/signup">
+              <motion.button
+                className="w-full sm:w-auto px-8 py-3 md:px-10 md:py-4 bg-[#FF6B35] text-white font-bold rounded-full text-base md:text-lg shadow-xl hover:shadow-2xl transition-shadow duration-300"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Start Planning Free
+              </motion.button>
+            </Link>
 
             <motion.button
               className="px-8 py-3 md:px-10 md:py-4 border-2 border-white text-white font-bold rounded-full text-base md:text-lg flex items-center justify-center gap-2 hover:bg-white/10 transition-colors duration-300"
