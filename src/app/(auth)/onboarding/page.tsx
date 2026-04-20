@@ -414,10 +414,12 @@ export default function OnboardingPage() {
         }
       }
 
-      // Update profile
+      // Update profile using upsert to handle case where profile doesn't exist yet
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({
+        .upsert({
+          user_id: authData.user.id,
+          email: authData.user.email,
           full_name: formData.firstName,
           country: formData.homeCountry,
           home_city: formData.homeCity,
@@ -427,8 +429,9 @@ export default function OnboardingPage() {
           avatar_url: photoUrl,
           onboarding_completed: true,
           updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", authData.user.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (profileError) {
         setError(profileError.message || "Failed to save profile");
