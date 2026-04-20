@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 export const updateSession = async (request: NextRequest) => {
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -13,7 +13,7 @@ export const updateSession = async (request: NextRequest) => {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     // Keep public routes alive even when auth env vars are not configured yet.
-    return response;
+    return { response, user: null };
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -34,7 +34,9 @@ export const updateSession = async (request: NextRequest) => {
 
   // This refreshes a user's session in case it has expired.
   // It's important to call this before protected route handlers.
-  await supabase.auth.getSession();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  return response;
+  return { response, user };
 };
