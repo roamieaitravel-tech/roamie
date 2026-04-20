@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-// Define public and protected routes
-const PUBLIC_ROUTES = ["/", "/login", "/signup", "/onboarding", "/-p"];
+// Define protected routes
 const PROTECTED_ROUTES = ["/dashboard", "/plan", "/results", "/matches", "/trips", "/profile"];
 
 export async function proxy(request: NextRequest) {
   // Update session to refresh auth tokens
-  let response = await updateSession(request);
+  const response = await updateSession(request);
   const pathname = request.nextUrl.pathname;
 
   // Check if route is protected
   const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
     pathname.startsWith(route)
   );
-  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname === route);
 
   // If it's a protected route, check authentication
   if (isProtectedRoute) {
