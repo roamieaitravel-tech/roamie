@@ -1,6 +1,7 @@
 /**
  * Validation utilities for form inputs
  */
+import * as z from "zod";
 
 export interface ValidationError {
   field: string;
@@ -242,3 +243,76 @@ export const getFieldError = (errors: ValidationError[], fieldName: string): str
 export const hasFieldError = (errors: ValidationError[], fieldName: string): boolean => {
   return errors.some((e) => e.field === fieldName);
 };
+
+// ============================================
+// ZOD SCHEMAS (For react-hook-form integration)
+// ============================================
+
+export const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .max(100, "Password is too long"),
+});
+
+export const signupSchema = z
+  .object({
+    fullName: z
+      .string()
+      .min(2, "Full name must be at least 2 characters")
+      .max(100, "Full name is too long"),
+    email: z.string().email("Please enter a valid email address"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(
+        /^(?=.*[a-zA-Z])(?=.*\d)/,
+        "Password must contain at least one letter and one number"
+      ),
+    confirmPassword: z.string(),
+    terms: z.boolean().refine((val) => val === true, {
+      message: "You must agree to the terms and privacy policy",
+    }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+export const onboardingSchema = z.object({
+  firstName: z.string().min(2, "Name must be at least 2 characters"),
+  homeCountry: z.string().min(1, "Country is required"),
+  homeCity: z.string().min(1, "City is required"),
+  homeAirport: z.string().optional(),
+  travelStyle: z.string().min(1, "Travel style is required"),
+  vibeTags: z.array(z.string()).min(1, "Select at least one vibe").max(6, "Select maximum 6 vibes"),
+});
+
+export const planTripSchema = z.object({
+  destination: z.string().min(2, "Destination must be at least 2 characters"),
+  origin: z.string().min(2, "Origin must be at least 2 characters").optional().or(z.literal("")),
+  startDate: z.string().refine((val) => {
+    if (!val) return false;
+    const date = new Date(val);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Only future dates allowed
+    return date > today;
+  }, "Start date must be a future date"),
+  endDate: z.string(),
+  flexible: z.boolean().default(true),
+  adults: z.number().min(1, "At least 1 traveler required").max(50, "Maximum 50 travelers"),
+  children: z.number().min(0).max(50).default(0),
+  budgetPerPerson: z.number().min(50, "Minimum budget is $50").max(1000000, "Maximum budget is $1,000,000"),
+  transportTypes: z.array(z.enum(["plane", "train", "cruise"])).min(1, "Select at least one transport type"),
+  travelStyle: z.enum(["Budget", "Comfort", "Premium"], { required_error: "Please select a travel style" }),
+  specialRequests: z.string().max(1000).optional(),
+}).refine((data) => {
+  if (!data.startDate || !data.endDate) return false;
+  const start = new Date(data.startDate);
+  const end = new Date(data.endDate);
+  return end > start;
+}, {
+  message: "End date must be after start date",
+  path: ["endDate"],
+});

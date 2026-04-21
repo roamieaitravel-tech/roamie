@@ -6,22 +6,17 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, ChevronLeft, Loader2, Upload } from "lucide-react";
 import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
-import { TravelStyle } from "@/types/database";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { toast } from "sonner";
+import { onboardingSchema } from "@/utils/validation";
 
 // ============================================
 // TYPES
 // ============================================
 
-interface OnboardingData {
-  firstName: string;
-  homeCountry: string;
-  homeCity: string;
-  homeAirport: string;
-  profilePhoto: File | null;
-  profilePhotoUrl: string | null;
-  travelStyle: TravelStyle | null;
-  vibeTags: string[];
-}
+type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
 type TravelStyleType = "budget" | "comfort" | "luxury";
 
@@ -290,90 +285,94 @@ export default function OnboardingPage() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isNextLoading, setIsNextLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
-  const [formData, setFormData] = useState<OnboardingData>({
-    firstName: "",
-    homeCountry: "",
-    homeCity: "",
-    homeAirport: "",
-    profilePhoto: null,
-    profilePhotoUrl: null,
-    travelStyle: null,
-    vibeTags: [],
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    trigger,
+    watch,
+    formState: { errors },
+  } = useForm<OnboardingFormData>({
+    resolver: zodResolver(onboardingSchema),
+    defaultValues: {
+      firstName: "",
+      homeCountry: "",
+      homeCity: "",
+      homeAirport: "",
+      travelStyle: "",
+      vibeTags: [],
+    },
   });
+
+  const watchedTravelStyle = watch("travelStyle");
+  const watchedVibeTags = watch("vibeTags") || [];
+  const activeErrorMessage = error ?? configErrorMessage;
 
   // ============================================
   // HANDLERS
   // ============================================
-
-  const handleInputChange = (
-    field: keyof OnboardingData,
-    value: string | string[]
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-    setError(null);
-  };
 
   const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setFormData((prev) => ({
-          ...prev,
-          profilePhoto: file,
-          profilePhotoUrl: event.target?.result as string,
-        }));
+        setProfilePhoto(file);
+        setProfilePhotoUrl(event.target?.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleStyleSelect = (style: TravelStyleType) => {
-    setFormData((prev) => ({
-      ...prev,
-      travelStyle: style,
-    }));
+  const handleStyleSelect = (style: string) => {
+    setValue("travelStyle", style, { shouldValidate: true });
+    setError(null);
   };
 
   const handleVibeToggle = (vibeId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      vibeTags: prev.vibeTags.includes(vibeId)
-        ? prev.vibeTags.filter((id) => id !== vibeId)
-        : prev.vibeTags.length < 6
-          ? [...prev.vibeTags, vibeId]
-          : prev.vibeTags,
-    }));
+    const current = watch("vibeTags") || [];
+    if (current.includes(vibeId)) {
+      setValue(
+        "vibeTags",
+        current.filter((id) => id !== vibeId),
+        { shouldValidate: true }
+      );
+    } else if (current.length < 6) {
+      setValue("vibeTags", [...current, vibeId], { shouldValidate: true });
+    }
+    setError(null);
   };
 
-  const handleNextStep = () => {
-    // Validation
-    if (currentStep === 1 && !formData.firstName.trim()) {
-      setError("Please enter your name");
-      return;
-    }
-    if (currentStep === 2 && (!formData.homeCountry || !formData.homeCity)) {
-      setError("Please fill in all required fields");
-      return;
-    }
-    if (currentStep === 3 && !formData.travelStyle) {
-      setError("Please select your travel style");
-      return;
-    }
-    if (currentStep === 4 && formData.vibeTags.length === 0) {
-      setError("Please select at least one vibe");
-      return;
+  const handleNextStep = async () => {
+    setIsNextLoading(true);
+    let isValid = false;
+
+    // A tiny delay to provide visual feedback for validation
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    if (currentStep === 1) {
+      isValid = await trigger(["firstName"]);
+    } else if (currentStep === 2) {
+      isValid = await trigger(["homeCountry", "homeCity"]);
+    } else if (currentStep === 3) {
+      isValid = await trigger(["travelStyle"]);
+    } else if (currentStep === 4) {
+      isValid = await trigger(["vibeTags"]);
     }
 
-    setError(null);
-    setDirection("forward");
-    setCurrentStep((prev) => Math.min(prev + 1, 4));
+    if (isValid) {
+      setError(null);
+      setDirection("forward");
+      setCurrentStep((prev) => Math.min(prev + 1, 4));
+    }
+    setIsNextLoading(false);
   };
 
   const handlePrevStep = () => {
@@ -382,7 +381,7 @@ export default function OnboardingPage() {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
-  const handleFinish = async () => {
+  const onSubmit = async (data: OnboardingFormData) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -401,53 +400,54 @@ export default function OnboardingPage() {
 
       // Upload profile photo if exists
       let photoUrl = null;
-      if (formData.profilePhoto) {
+      if (profilePhoto) {
         const fileName = `${authData.user.id}-${Date.now()}`;
         const { error: uploadError } = await supabase.storage
           .from("profile-photos")
-          .upload(fileName, formData.profilePhoto);
+          .upload(fileName, profilePhoto);
 
         if (!uploadError) {
-          const { data } = supabase.storage
+          const { data: publicData } = supabase.storage
             .from("profile-photos")
             .getPublicUrl(fileName);
-          photoUrl = data.publicUrl;
+          photoUrl = publicData.publicUrl;
         }
       }
 
-      // Update profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          full_name: formData.firstName,
-          country: formData.homeCountry,
-          home_city: formData.homeCity,
-          home_airport: formData.homeAirport || null,
-          travel_style: [formData.travelStyle],
-          vibe_tags: formData.vibeTags,
-          avatar_url: photoUrl,
-          onboarding_completed: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", authData.user.id);
+      // Call our API route which uses backend upsert
+      const payload = {
+        name: data.firstName,
+        travelStyle: [data.travelStyle],
+        vibe: data.vibeTags,
+        location: `${data.homeCity}, ${data.homeCountry}`,
+        avatar_url: photoUrl,
+      };
 
-      if (profileError) {
-        setError(profileError.message || "Failed to save profile");
+      const res = await fetch("/api/onboarding/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        setError(result.error || "Failed to save profile");
+        toast.error(result.error || "Failed to save profile");
         return;
       }
+
+      toast.success("Profile saved successfully!");
 
       // Redirect to dashboard
       router.push("/dashboard");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred"
-      );
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      toast.error("Failed to complete onboarding");
     } finally {
       setIsLoading(false);
     }
   };
-
-  const activeErrorMessage = error ?? configErrorMessage;
 
   // ============================================
   // RENDER STEP CONTENT
@@ -499,30 +499,41 @@ export default function OnboardingPage() {
               <h2 className="text-3xl font-bold text-[#1c1c1e] mb-8">
                 Hey there! What should we call you?
               </h2>
-              <input
-                type="text"
-                placeholder="Enter your first name"
-                value={formData.firstName}
-                onChange={(e) => handleInputChange("firstName", e.target.value)}
-                className="w-full px-6 py-4 text-xl border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none mb-6 text-center bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700"
-              />
+              
+              <div className="mb-6 relative">
+                <input
+                  {...register("firstName")}
+                  type="text"
+                  placeholder="Enter your first name"
+                  className={`w-full px-6 py-4 text-xl border-2 rounded-xl focus:outline-none text-center bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-colors ${
+                    errors.firstName
+                      ? "border-red-500 bg-red-50 dark:bg-red-900/20"
+                      : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35]"
+                  }`}
+                />
+                {errors.firstName && (
+                  <p className="text-red-600 dark:text-red-400 text-sm mt-1 font-medium absolute w-full -bottom-6">
+                    {errors.firstName.message}
+                  </p>
+                )}
+              </div>
 
               {/* Profile Photo Upload */}
-              <div className="mb-8">
+              <div className="mb-8 mt-8">
                 <label className="block text-sm font-semibold text-gray-600 mb-4">
                   Profile Photo (Optional)
                 </label>
                 <label className="cursor-pointer flex flex-col items-center justify-center">
                   <div
                     className={`w-24 h-24 rounded-full flex items-center justify-center border-2 border-dashed transition-colors ${
-                      formData.profilePhotoUrl
+                      profilePhotoUrl
                         ? "border-[#FF6B35] bg-orange-50"
-                        : "border-gray-300 bg-gray-50 hover:bg-gray-100"
+                        : "border-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700"
                     }`}
                   >
-                    {formData.profilePhotoUrl ? (
+                    {profilePhotoUrl ? (
                       <Image
-                        src={formData.profilePhotoUrl}
+                        src={profilePhotoUrl}
                         alt="Profile"
                         width={96}
                         height={96}
@@ -549,9 +560,19 @@ export default function OnboardingPage() {
 
               <button
                 onClick={handleNextStep}
-                className="w-full bg-[#FF6B35] text-white py-4 rounded-full font-bold text-lg hover:bg-[#ff5820] transition-colors flex items-center justify-center gap-2"
+                disabled={isNextLoading}
+                className="w-full bg-[#FF6B35] text-white py-4 rounded-full font-bold text-lg hover:bg-[#ff5820] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Continue <ChevronRight className="w-5 h-5" />
+                {isNextLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    Continue <ChevronRight className="w-5 h-5" />
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -571,16 +592,17 @@ export default function OnboardingPage() {
               </h2>
 
               {/* Country Select */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-600 mb-2 text-left">
+              <div className="mb-6 text-left">
+                <label className="block text-sm font-semibold text-gray-600 mb-2">
                   Country
                 </label>
                 <select
-                  value={formData.homeCountry}
-                  onChange={(e) =>
-                    handleInputChange("homeCountry", e.target.value)
-                  }
-                  className="w-full px-6 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none text-lg bg-white text-gray-900 dark:bg-gray-800 dark:text-white dark:border-gray-700"
+                  {...register("homeCountry")}
+                  className={`w-full px-6 py-3 border-2 rounded-xl focus:outline-none text-lg bg-white text-gray-900 dark:bg-gray-800 dark:text-white transition-colors ${
+                    errors.homeCountry
+                      ? "border-red-500 bg-red-50 dark:bg-red-900/20"
+                      : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35]"
+                  }`}
                 >
                   <option value="">Select your country</option>
                   {COUNTRIES.map((country) => (
@@ -589,36 +611,44 @@ export default function OnboardingPage() {
                     </option>
                   ))}
                 </select>
+                {errors.homeCountry && (
+                  <p className="text-red-600 dark:text-red-400 text-sm mt-1 font-medium">
+                    {errors.homeCountry.message}
+                  </p>
+                )}
               </div>
 
               {/* City Input */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-600 mb-2 text-left">
+              <div className="mb-6 text-left">
+                <label className="block text-sm font-semibold text-gray-600 mb-2">
                   Home City
                 </label>
                 <input
+                  {...register("homeCity")}
                   type="text"
                   placeholder="e.g. New York, Mumbai, London"
-                  value={formData.homeCity}
-                  onChange={(e) =>
-                    handleInputChange("homeCity", e.target.value)
-                  }
-                  className="w-full px-6 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none text-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700"
+                  className={`w-full px-6 py-3 border-2 rounded-xl focus:outline-none text-lg bg-white text-gray-900 dark:bg-gray-800 dark:text-white transition-colors ${
+                    errors.homeCity
+                      ? "border-red-500 bg-red-50 dark:bg-red-900/20"
+                      : "border-gray-200 dark:border-gray-700 focus:border-[#FF6B35]"
+                  }`}
                 />
+                {errors.homeCity && (
+                  <p className="text-red-600 dark:text-red-400 text-sm mt-1 font-medium">
+                    {errors.homeCity.message}
+                  </p>
+                )}
               </div>
 
               {/* Airport Input */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-600 mb-2 text-left">
+              <div className="mb-6 text-left">
+                <label className="block text-sm font-semibold text-gray-600 mb-2">
                   Nearest Airport (Optional)
                 </label>
                 <input
+                  {...register("homeAirport")}
                   type="text"
                   placeholder="e.g. JFK, LHR, DXB"
-                  value={formData.homeAirport}
-                  onChange={(e) =>
-                    handleInputChange("homeAirport", e.target.value)
-                  }
                   className="w-full px-6 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:outline-none text-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700"
                 />
               </div>
@@ -632,15 +662,25 @@ export default function OnboardingPage() {
               <div className="flex gap-4">
                 <button
                   onClick={handlePrevStep}
-                  className="flex-1 border-2 border-gray-200 text-[#1c1c1e] py-4 rounded-full font-bold text-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                  disabled={isNextLoading}
+                  className="flex-1 border-2 border-gray-200 text-[#1c1c1e] py-4 rounded-full font-bold text-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 dark:text-white dark:border-gray-700 dark:hover:bg-gray-800 disabled:opacity-50"
                 >
                   <ChevronLeft className="w-5 h-5" /> Back
                 </button>
                 <button
                   onClick={handleNextStep}
-                  className="flex-1 bg-[#FF6B35] text-white py-4 rounded-full font-bold text-lg hover:bg-[#ff5820] transition-colors flex items-center justify-center gap-2"
+                  disabled={isNextLoading}
+                  className="flex-1 bg-[#FF6B35] text-white py-4 rounded-full font-bold text-lg hover:bg-[#ff5820] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Continue <ChevronRight className="w-5 h-5" />
+                  {isNextLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    </>
+                  ) : (
+                    <>
+                      Continue <ChevronRight className="w-5 h-5" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -670,22 +710,22 @@ export default function OnboardingPage() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className={`p-6 rounded-2xl border-2 transition-all text-left ${
-                      formData.travelStyle === style.id
-                        ? "border-[#FF6B35] bg-orange-50"
-                        : "border-gray-200 bg-white hover:border-orange-200"
+                      watchedTravelStyle === style.id
+                        ? "border-[#FF6B35] bg-orange-50 dark:bg-orange-900/20"
+                        : "border-gray-200 bg-white hover:border-orange-200 dark:bg-gray-800 dark:border-gray-700 dark:hover:border-gray-600"
                     }`}
                   >
                     <div className="flex items-start gap-4">
                       <span className="text-4xl">{style.emoji}</span>
                       <div>
-                        <h3 className="text-xl font-bold text-[#1c1c1e]">
+                        <h3 className="text-xl font-bold text-[#1c1c1e] dark:text-white">
                           {style.title}
                         </h3>
-                        <p className="text-gray-600 text-sm whitespace-pre-line">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm whitespace-pre-line">
                           {style.description}
                         </p>
                       </div>
-                      {formData.travelStyle === style.id && (
+                      {watchedTravelStyle === style.id && (
                         <div className="ml-auto w-6 h-6 rounded-full bg-[#FF6B35] flex items-center justify-center">
                           <span className="text-white text-sm">✓</span>
                         </div>
@@ -693,6 +733,11 @@ export default function OnboardingPage() {
                     </div>
                   </motion.button>
                 ))}
+                {errors.travelStyle && (
+                  <p className="text-red-600 dark:text-red-400 text-sm mt-1 font-medium">
+                    {errors.travelStyle.message}
+                  </p>
+                )}
               </div>
 
               {activeErrorMessage && (
@@ -704,15 +749,25 @@ export default function OnboardingPage() {
               <div className="flex gap-4">
                 <button
                   onClick={handlePrevStep}
-                  className="flex-1 border-2 border-gray-200 text-[#1c1c1e] py-4 rounded-full font-bold text-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                  disabled={isNextLoading}
+                  className="flex-1 border-2 border-gray-200 text-[#1c1c1e] py-4 rounded-full font-bold text-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 dark:text-white dark:border-gray-700 dark:hover:bg-gray-800 disabled:opacity-50"
                 >
                   <ChevronLeft className="w-5 h-5" /> Back
                 </button>
                 <button
                   onClick={handleNextStep}
-                  className="flex-1 bg-[#FF6B35] text-white py-4 rounded-full font-bold text-lg hover:bg-[#ff5820] transition-colors flex items-center justify-center gap-2"
+                  disabled={isNextLoading}
+                  className="flex-1 bg-[#FF6B35] text-white py-4 rounded-full font-bold text-lg hover:bg-[#ff5820] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Continue <ChevronRight className="w-5 h-5" />
+                  {isNextLoading ? (
+                     <>
+                     <Loader2 className="w-5 h-5 animate-spin" />
+                   </>
+                  ) : (
+                    <>
+                      Continue <ChevronRight className="w-5 h-5" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -736,7 +791,7 @@ export default function OnboardingPage() {
               </p>
 
               {/* Vibe Tags Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6 flex-wrap">
                 {VIBE_TAGS.map((tag) => (
                   <motion.button
                     key={tag.id}
@@ -744,19 +799,24 @@ export default function OnboardingPage() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     className={`py-3 px-4 rounded-full font-semibold transition-all text-sm ${
-                      formData.vibeTags.includes(tag.id)
+                      watchedVibeTags.includes(tag.id)
                         ? "bg-[#FF6B35] text-white"
-                        : "bg-gray-100 text-[#1c1c1e] hover:bg-gray-200"
-                    } ${formData.vibeTags.length >= 6 && !formData.vibeTags.includes(tag.id) ? "opacity-50 cursor-not-allowed" : ""}`}
+                        : "bg-gray-100 text-[#1c1c1e] hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                    } ${watchedVibeTags.length >= 6 && !watchedVibeTags.includes(tag.id) ? "opacity-50 cursor-not-allowed" : ""}`}
                     disabled={
-                      formData.vibeTags.length >= 6 &&
-                      !formData.vibeTags.includes(tag.id)
+                      watchedVibeTags.length >= 6 &&
+                      !watchedVibeTags.includes(tag.id)
                     }
                   >
                     <span className="mr-1">{tag.emoji}</span> {tag.label}
                   </motion.button>
                 ))}
               </div>
+              {errors.vibeTags && (
+                <p className="text-red-600 dark:text-red-400 text-sm mt-1 font-medium mb-4">
+                  {errors.vibeTags.message}
+                </p>
+              )}
 
               {activeErrorMessage && (
                 <p className="text-red-600 text-sm font-medium mb-4">
@@ -767,13 +827,13 @@ export default function OnboardingPage() {
               <div className="flex gap-4">
                 <button
                   onClick={handlePrevStep}
-                  className="flex-1 border-2 border-gray-200 text-[#1c1c1e] py-4 rounded-full font-bold text-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 border-2 border-gray-200 text-[#1c1c1e] py-4 rounded-full font-bold text-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 dark:text-white dark:border-gray-700 dark:hover:bg-gray-800"
                   disabled={isLoading}
                 >
                   <ChevronLeft className="w-5 h-5" /> Back
                 </button>
                 <button
-                  onClick={handleFinish}
+                  onClick={handleSubmit(onSubmit)}
                   disabled={!supabase || isLoading}
                   className="flex-1 bg-[#FF6B35] text-white py-4 rounded-full font-bold text-lg hover:bg-[#ff5820] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
@@ -797,7 +857,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex flex-col p-6">
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950 flex flex-col p-6 transition-colors">
       {/* Progress Bar */}
       <div className="mb-12">
         <div className="flex justify-between items-center mb-4">
@@ -807,17 +867,17 @@ export default function OnboardingPage() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: step * 0.1 }}
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${
                 step <= currentStep
                   ? "bg-[#FF6B35] text-white"
-                  : "bg-gray-200 text-gray-600"
+                  : "bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
               }`}
             >
               {step}
             </motion.div>
           ))}
         </div>
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
           <motion.div
             initial={{ width: "0%" }}
             animate={{ width: `${(currentStep / 4) * 100}%` }}
@@ -833,7 +893,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Step Indicator */}
-      <div className="mt-12 text-center text-gray-500 text-sm">
+      <div className="mt-12 text-center text-gray-500 dark:text-gray-400 text-sm">
         Step {currentStep} of 4
       </div>
     </div>

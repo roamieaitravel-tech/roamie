@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Send, Loader2 } from "lucide-react";
-import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
+import { AlertTriangle, ArrowLeft, Send, Check, CheckCheck } from "lucide-react";
+import { useRealtimeChat } from "@/hooks/useRealtimeChat";
+import { dateUtils } from "@/utils/date";
+import { getTypingIndicator } from "@/utils/chat";
 
 interface ChatWindowProps {
   open: boolean;
@@ -13,132 +15,68 @@ interface ChatWindowProps {
   onClose: () => void;
 }
 
-interface MatchMessage {
-  id: string;
-  sender_id: string;
-  recipient_id: string;
-  content: string;
-  created_at: string;
-}
-
 export default function ChatWindow({ open, matchId, matchName, currentUserId, recipientId, onClose }: ChatWindowProps) {
-  const [messages, setMessages] = useState<MatchMessage[]>([]);
   const [draft, setDraft] = useState("");
-  const [loading, setLoading] = useState(true);
   const [showNotice, setShowNotice] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  let typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const {
+    messages,
+    sendMessage,
+    isTyping,
+    isOnline,
+    sendTypingStatus,
+    error: chatError
+  } = useRealtimeChat({
+    matchId,
+    currentUserId,
+    recipientId,
+  });
 
   const groupedMessages = useMemo(() => {
-    return messages.reduce<Record<string, MatchMessage[]>>((acc, message) => {
-      const date = new Date(message.created_at).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+    return messages.reduce<Record<string, any[]>>((acc, message) => {
+      const date = dateUtils.format(message.created_at);
       acc[date] = acc[date] ? [...acc[date], message] : [message];
       return acc;
     }, {});
   }, [messages]);
 
   useEffect(() => {
-    if (!open || !matchId) {
-      return;
-    }
-
-    const supabase = createClient();
-    if (!supabase) {
-      setErrorMessage(getSupabaseConfigError());
-      setLoading(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    const loadMessages = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("messages")
-        .select("id,sender_id,recipient_id,content,created_at")
-        .eq("match_id", matchId)
-        .order("created_at", { ascending: true });
-
-      if (error) {
-        console.error("Error loading chat messages", error);
-        if (isMounted) {
-          setErrorMessage("Error loading chat messages.");
-        }
-      } else if (isMounted && data) {
-        setMessages(data);
-        setErrorMessage(null);
-      }
-      setLoading(false);
-    };
-
-    loadMessages();
-
-    const channel = supabase
-      .channel(`chat-window-${matchId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `match_id=eq.${matchId}`,
-        },
-        (payload: { new: MatchMessage }) => {
-          const message = payload.new as MatchMessage;
-          setMessages((current) => [...current, message]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      isMounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, [open, matchId]);
-
-  useEffect(() => {
     if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
+      listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
     }
-  }, [groupedMessages]);
+  }, [groupedMessages, isTyping]);
 
   const handleSend = async () => {
-    const content = draft.trim();
-    if (!content || !matchId) {
-      return;
+    if (!draft.trim()) return;
+    const currentDraft = draft;
+    setDraft(""); // Clear instantly for optimal local UI latency impression
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    try {
+      await sendMessage(currentDraft);
+    } catch (e) {
+      // Hook handles graceful degradation / rendering of error states securely
     }
+  };
 
-    const supabase = createClient();
-    if (!supabase) {
-      setErrorMessage(getSupabaseConfigError());
-      return;
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSend();
     }
+  };
 
-    const now = new Date().toISOString();
-
-    const { error } = await supabase.from("messages").insert([
-      {
-        match_id: matchId,
-        sender_id: currentUserId,
-        recipient_id: recipientId ?? null,
-        content,
-        read: false,
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
-
-    if (error) {
-      console.error("Error sending message", error);
-      setErrorMessage("Error sending message.");
-      return;
-    }
-
-    setDraft("");
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDraft(e.target.value);
+    
+    sendTypingStatus(true);
+    
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTypingStatus(false);
+    }, 2000); // 2 second typing debounce timeout
   };
 
   if (!open) {
@@ -157,8 +95,8 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
             <div>
               <p className="text-sm font-semibold text-slate-900">{matchName}</p>
               <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                Online
+                <span className={`inline-flex h-2.5 w-2.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-slate-300"}`} />
+                {isOnline ? "Online" : "Offline"}
               </div>
             </div>
           </div>
@@ -181,28 +119,30 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
         ) : null}
 
         <div className="flex h-[calc(100%-240px)] flex-col overflow-hidden">
-          <div ref={listRef} className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
-            {loading ? (
-              <div className="flex h-full items-center justify-center text-slate-500">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading messages
-              </div>
-            ) : errorMessage ? (
+          <div ref={listRef} className="flex-1 space-y-6 overflow-y-auto px-6 py-5 scroll-smooth">
+            {chatError ? (
               <div className="rounded-3xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-700">
-                {errorMessage}
+                {chatError}
               </div>
             ) : messages.length === 0 ? (
-              <div className="text-center text-slate-500">Start the conversation and get to know your match.</div>
+              <div className="text-center text-slate-500 mt-28">Start the conversation and get to know your match.</div>
             ) : (
               Object.entries(groupedMessages).map(([date, items]) => (
                 <div key={date} className="space-y-4">
                   <div className="text-center text-xs uppercase tracking-[0.24em] text-slate-400">{date}</div>
                   {items.map((message) => {
                     const isMine = message.sender_id === currentUserId;
+                    const isOptimistic = (message as any).isOptimistic;
+                    
                     return (
                       <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[80%] rounded-3xl px-4 py-3 text-sm leading-6 ${isMine ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-900"}`}>
-                          <p>{message.content}</p>
-                          <div className="mt-2 text-xs text-slate-400">{new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                        <div className={`max-w-[80%] rounded-3xl px-4 py-3 text-sm leading-6 transition-all ${isMine ? "bg-[#FF6B35] text-white" : "bg-slate-100 text-slate-900"} ${isOptimistic ? "opacity-70" : "opacity-100"}`}>
+                          <p className="whitespace-pre-wrap word-break">{message.content}</p>
+                          <div className={`mt-2 text-xs flex items-center justify-end gap-1 ${isMine ? "text-orange-200" : "text-slate-400"}`}>
+                            {dateUtils.formatTime(message.created_at)}
+                            {isMine && !isOptimistic && <CheckCheck className="h-3 w-3" />}
+                            {isMine && isOptimistic && <Check className="h-3 w-3" />}
+                          </div>
                         </div>
                       </div>
                     );
@@ -210,6 +150,15 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
                 </div>
               ))
             )}
+            
+            {isTyping && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] rounded-3xl px-6 py-3 bg-slate-100 text-slate-900 h-[48px] flex items-center justify-center">
+                  <div dangerouslySetInnerHTML={{ __html: getTypingIndicator() }} />
+                </div>
+              </div>
+            )}
+            
           </div>
         </div>
 
@@ -217,14 +166,16 @@ export default function ChatWindow({ open, matchId, matchName, currentUserId, re
           <div className="flex items-center gap-3">
             <input
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={handleTyping}
+              onKeyDown={handleKeyDown}
               placeholder="Type a message..."
               className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-orange-500"
             />
             <button
               type="button"
               onClick={handleSend}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-orange-500 px-4 text-white transition hover:bg-orange-600"
+              disabled={!draft.trim()}
+              className="inline-flex h-11 items-center justify-center rounded-full bg-[#FF6B35] px-4 text-white transition hover:bg-[#ff7a4c] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="h-4 w-4" />
             </button>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -19,33 +19,9 @@ import {
   Train,
 } from "lucide-react";
 
-export type PlanFormValues = {
-  destination: string;
-  origin: string;
-  startDate: string;
-  endDate: string;
-  flexible: boolean;
-  adults: number;
-  children: number;
-  budgetPerPerson: number;
-  transportTypes: Array<"plane" | "train" | "cruise">;
-  travelStyle: "Budget" | "Comfort" | "Premium";
-  specialRequests: string;
-};
+import { planTripSchema } from "@/utils/validation";
 
-const planSchema = z.object({
-  destination: z.string().min(1),
-  origin: z.string().min(1),
-  startDate: z.string().min(1),
-  endDate: z.string().min(1),
-  flexible: z.boolean(),
-  adults: z.number().min(1),
-  children: z.number().min(0),
-  budgetPerPerson: z.number().min(100).max(10000),
-  transportTypes: z.array(z.enum(["plane", "train", "cruise"])).min(1),
-  travelStyle: z.enum(["Budget", "Comfort", "Premium"]),
-  specialRequests: z.string().max(1000),
-});
+export type PlanFormValues = z.infer<typeof planTripSchema>;
 
 const defaultValues: PlanFormValues = {
   destination: "",
@@ -72,8 +48,9 @@ export default function PlanForm({ submitting, onSubmit }: PlanFormProps) {
     handleSubmit,
     setValue,
     watch,
+    formState: { errors },
   } = useForm<PlanFormValues>({
-    resolver: zodResolver(planSchema),
+    resolver: zodResolver(planTripSchema),
     defaultValues,
     mode: "onChange",
   });
@@ -114,29 +91,31 @@ export default function PlanForm({ submitting, onSubmit }: PlanFormProps) {
             <input
               type="text"
               placeholder="City, country or region"
-              className="w-full rounded-3xl border-2 border-slate-200 bg-slate-50 py-4 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-orange-500"
+              className={`w-full rounded-3xl border-2 bg-slate-50 py-4 pl-12 pr-4 text-sm text-slate-900 outline-none transition ${errors.destination ? "border-red-500" : "border-slate-200 focus:border-orange-500"}`}
               {...register("destination")}
             />
           </div>
+          {errors.destination && <p className="text-red-500 text-xs ml-4">{errors.destination.message as string}</p>}
         </div>
 
         <div className="space-y-3">
-          <label className="text-sm font-medium text-slate-900">Departing from</label>
+          <label className="text-sm font-medium text-slate-900">Departing from (Optional)</label>
           <div className="relative">
             <Navigation className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Your home city or airport"
-              className="w-full rounded-3xl border-2 border-slate-200 bg-slate-50 py-4 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-orange-500"
+              className={`w-full rounded-3xl border-2 bg-slate-50 py-4 pl-12 pr-4 text-sm text-slate-900 outline-none transition ${errors.origin ? "border-red-500" : "border-slate-200 focus:border-orange-500"}`}
               {...register("origin")}
             />
           </div>
+          {errors.origin && <p className="text-red-500 text-xs ml-4">{errors.origin.message as string}</p>}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-3">
             <label className="text-sm font-medium text-slate-900">Departure date</label>
-            <div className="relative rounded-3xl border-2 border-slate-200 bg-slate-50 py-4 pl-12 pr-4 transition focus-within:border-orange-500">
+            <div className={`relative rounded-3xl border-2 bg-slate-50 py-4 pl-12 pr-4 transition ${errors.startDate ? "border-red-500" : "border-slate-200 focus-within:border-orange-500"}`}>
               <Calendar className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
               <input
                 type="date"
@@ -144,6 +123,19 @@ export default function PlanForm({ submitting, onSubmit }: PlanFormProps) {
                 {...register("startDate")}
               />
             </div>
+            {errors.startDate && <p className="text-red-500 text-xs ml-4">{errors.startDate.message as string}</p>}
+          </div>
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-slate-900">Return date</label>
+            <div className={`relative rounded-3xl border-2 bg-slate-50 py-4 pl-12 pr-4 transition ${errors.endDate ? "border-red-500" : "border-slate-200 focus-within:border-orange-500"}`}>
+              <Calendar className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="date"
+                className="w-full bg-transparent text-sm text-slate-900 outline-none"
+                {...register("endDate")}
+              />
+            </div>
+            {errors.endDate && <p className="text-red-500 text-xs ml-4">{errors.endDate.message as string}</p>}
           </div>
           <div className="space-y-3">
             <label className="text-sm font-medium text-slate-900">Return date</label>
@@ -206,6 +198,7 @@ export default function PlanForm({ submitting, onSubmit }: PlanFormProps) {
               </div>
             ))}
           </div>
+          {errors.adults && <p className="text-red-500 text-xs ml-4">{errors.adults.message as string}</p>}
         </div>
 
         <div className="space-y-4">
@@ -267,6 +260,7 @@ export default function PlanForm({ submitting, onSubmit }: PlanFormProps) {
               );
             })}
           </div>
+          {errors.transportTypes && <p className="text-red-500 text-xs ml-4">{errors.transportTypes.message as string}</p>}
         </div>
 
         <div className="space-y-4">
@@ -300,6 +294,7 @@ export default function PlanForm({ submitting, onSubmit }: PlanFormProps) {
               );
             })}
           </div>
+          {errors.travelStyle && <p className="text-red-500 text-xs ml-4">{errors.travelStyle.message as string}</p>}
         </div>
 
         <div className="space-y-3">

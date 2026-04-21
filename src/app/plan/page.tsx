@@ -6,16 +6,24 @@ import { useRouter } from "next/navigation";
 import PlanForm, { PlanFormValues } from "@/components/trip/PlanForm";
 import LoadingPlan from "@/components/trip/LoadingPlan";
 
+import { RefreshCcw } from "lucide-react";
+
 export default function PlanPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [streamText, setStreamText] = useState("");
+  const [lastSubmittedValues, setLastSubmittedValues] = useState<PlanFormValues | null>(null);
 
   const handleSubmit = async (values: PlanFormValues) => {
     setError(null);
     setIsLoading(true);
+    setStreamText("");
+    setLastSubmittedValues(values);
 
-    const tripId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tripId = typeof crypto !== "undefined" && "randomUUID" in crypto 
+      ? crypto.randomUUID() 
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     try {
       const response = await fetch("/api/plan-trip", {
@@ -25,22 +33,46 @@ export default function PlanPage() {
       });
 
       if (!response.ok) {
-        const errorResponse = await response.json().catch(() => null);
-        const message = errorResponse?.error || (await response.text()) || "Unable to generate trip plan.";
-        throw new Error(message);
+        const message = await response.text();
+        throw new Error(message || "Unable to generate trip plan.");
       }
 
-      const payload = await response.json();
-      router.push(`/results?id=${encodeURIComponent(payload.tripId)}`);
+      if (!response.body) throw new Error("No response stream");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        setStreamText((prev) => prev + chunk);
+      }
+
+      // After streaming entirely finishes, route to results payload since Supabase has it.
+      router.push(`/results?id=${encodeURIComponent(tripId)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unexpected error occurred.");
+      setError(err instanceof Error ? err.message : "Unexpected error occurred while generating trip.");
       setIsLoading(false);
     }
   };
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      {isLoading && <LoadingPlan />}
+      {isLoading && (
+        <>
+          <div className="fixed top-0 left-0 w-full z-[60] bg-white shadow-md rounded-b-[32px] p-6 max-h-[30vh] overflow-y-auto">
+             <div className="flex items-center gap-3">
+               <div className="h-6 w-6 border-4 border-orange-500 border-t-transparent flex rounded-full animate-spin"></div>
+               <span className="font-semibold text-lg text-slate-900 tracking-wide uppercase">Generating your trip stream...</span>
+             </div>
+             <p className="text-slate-500 text-xs mt-3 whitespace-pre-wrap break-words opacity-70 leading-relaxed font-mono">
+               {streamText}
+             </p>
+          </div>
+          <LoadingPlan />
+        </>
+      )}
 
       <div className="mx-auto min-h-screen max-w-[1600px] lg:grid lg:grid-cols-[40%_60%]">
         <aside className="hidden h-screen flex-col bg-[#004E89] px-10 py-12 text-white lg:flex">
@@ -106,8 +138,17 @@ export default function PlanPage() {
             <div className="rounded-[32px] border border-slate-200 bg-white p-12 shadow-sm">
               <PlanForm onSubmit={handleSubmit} submitting={isLoading} />
               {error ? (
-                <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-                  {error}
+                <div className="mt-8 rounded-3xl border border-red-200 bg-red-50 p-6 flex flex-col gap-4 text-sm text-red-700">
+                  <div>
+                    <h3 className="font-bold text-red-800 text-lg">Trip Generation Failed</h3>
+                    <p className="mt-1">{error}</p>
+                  </div>
+                  <button 
+                    onClick={() => lastSubmittedValues && handleSubmit(lastSubmittedValues)}
+                    className="flex items-center self-start justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-full transition-colors"
+                  >
+                    <RefreshCcw className="h-4 w-4" /> Try Again
+                  </button>
                 </div>
               ) : null}
               <div className="mt-8 flex items-center gap-3 text-sm text-slate-500">

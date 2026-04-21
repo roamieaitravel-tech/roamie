@@ -9,34 +9,8 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, User, Mail, Lock, CheckCircle2 } from "lucide-react";
 import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
-
-// ============================================
-// VALIDATION SCHEMA
-// ============================================
-
-const signupSchema = z
-  .object({
-    fullName: z
-      .string()
-      .min(2, "Full name must be at least 2 characters")
-      .max(100, "Full name is too long"),
-    email: z.string().email("Please enter a valid email address"),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(
-        /^(?=.*[a-zA-Z])(?=.*\d)/,
-        "Password must contain at least one letter and one number"
-      ),
-    confirmPassword: z.string(),
-    terms: z.boolean().refine((val) => val === true, {
-      message: "You must agree to the terms and privacy policy",
-    }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
+import { toast } from "sonner";
+import { signupSchema } from "@/utils/validation";
 
 type SignupFormData = z.infer<typeof signupSchema>;
 
@@ -114,6 +88,7 @@ export default function SignupPage() {
 
       if (signupError) {
         setGeneralError(signupError.message || "Failed to create account");
+        toast.error(signupError.message || "Failed to create account");
         return;
       }
 
@@ -141,16 +116,19 @@ export default function SignupPage() {
       setSuccessMessage(
         "Account created! Check your email to confirm your account."
       );
+      toast.success("Account created! Check your email to confirm your account.");
       reset();
 
-      // Redirect to onboarding after short delay
+      // Redirect to dashboard (user requirement: On success redirect to /dashboard)
+      toast.success("Redirecting to dashboard...");
       setTimeout(() => {
-        router.push("/onboarding");
+        router.push("/dashboard");
       }, 2000);
     } catch (err) {
       setGeneralError(
         err instanceof Error ? err.message : "An unexpected error occurred"
       );
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -183,6 +161,7 @@ export default function SignupPage() {
 
       if (error) {
         setGeneralError(error.message || "Failed to sign up with Google");
+        toast.error(error.message || "Failed to sign up with Google");
         setIsGoogleLoading(false);
       }
       // Note: If successful, browser will redirect - don't set loading to false
@@ -190,6 +169,7 @@ export default function SignupPage() {
       setGeneralError(
         err instanceof Error ? err.message : "An unexpected error occurred"
       );
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
       setIsGoogleLoading(false);
     }
   };

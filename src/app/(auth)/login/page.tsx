@@ -8,19 +8,9 @@ import * as z from "zod";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, Mail, Lock } from "lucide-react";
 import { createClient, getSupabaseConfigError } from "@/lib/supabase/client";
+import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
-
-// ============================================
-// VALIDATION SCHEMA
-// ============================================
-
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-    .max(100, "Password is too long"),
-});
+import { loginSchema } from "@/utils/validation";
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
@@ -95,8 +85,11 @@ export default function LoginPage() {
         setGeneralError(
           error.message || "Failed to sign in. Please check your credentials."
         );
+        toast.error(error.message || "Failed to sign in");
         return;
       }
+
+      toast.success("Successfully signed in!");
 
       // Clear form and redirect
       reset();
@@ -105,6 +98,7 @@ export default function LoginPage() {
       setGeneralError(
         err instanceof Error ? err.message : "An unexpected error occurred"
       );
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -121,13 +115,18 @@ export default function LoginPage() {
 
       if (!supabase) {
         setGeneralError(getSupabaseConfigError());
+        setIsGoogleLoading(false);
         return;
       }
+
+      const redirectUrl = process.env.NEXT_PUBLIC_SITE_URL 
+        ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+        : `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/dashboard`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -137,6 +136,7 @@ export default function LoginPage() {
 
       if (error) {
         setGeneralError(error.message || "Failed to sign in with Google");
+        toast.error(error.message || "Failed to sign in with Google");
         setIsGoogleLoading(false);
       }
       // Note: If successful, browser will redirect - don't set loading to false
@@ -144,6 +144,7 @@ export default function LoginPage() {
       setGeneralError(
         err instanceof Error ? err.message : "An unexpected error occurred"
       );
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
       setIsGoogleLoading(false);
     }
   };

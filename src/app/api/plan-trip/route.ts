@@ -1,4 +1,4 @@
-﻿import { OpenAI } from "openai";
+import { OpenAI } from "openai";
 import { createClient } from "@/lib/supabase/server";
 
 const systemPrompt = `You are Roamie AI, the world's best budget travel planning expert.
@@ -195,39 +195,60 @@ export async function POST(request: Request) {
       ],
       temperature: 0.2,
       max_tokens: 1500,
+      stream: true,
     });
 
-    const responseText = completion.choices?.[0]?.message?.content;
-    if (!responseText) {
-      throw new Error("OpenAI returned an empty response.");
-    }
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        let fullResponse = "";
+        try {
+          for await (const chunk of completion) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) {
+              fullResponse += content;
+              controller.enqueue(encoder.encode(content));
+            }
+          }
 
-    const aiItinerary = JSON.parse(responseText);
+          // At the end of the stream, save to Database
+          try {
+            const aiItinerary = JSON.parse(fullResponse);
+            const transportType = body.transportTypes.length === 1 ? body.transportTypes[0] : "mixed";
+            const tripData = {
+              id: body.tripId,
+              destination: body.destination,
+              origin: body.origin,
+              start_date: body.startDate,
+              end_date: body.endDate,
+              budget: body.budgetPerPerson,
+              currency: "USD",
+              transport_type: transportType as string,
+              status: "planning",
+              ai_itinerary: aiItinerary,
+              user_id: authData?.user?.id ?? null,
+            };
 
-    const transportType = body.transportTypes.length === 1 ? body.transportTypes[0] : "mixed";
-    const tripData = {
-      id: body.tripId,
-      destination: body.destination,
-      origin: body.origin,
-      start_date: body.startDate,
-      end_date: body.endDate,
-      budget: body.budgetPerPerson,
-      currency: "USD",
-      transport_type: transportType as string,
-      status: "planning",
-      ai_itinerary: aiItinerary,
-      user_id: authData?.user?.id ?? null,
-    };
+            const { error: insertError } = await supabase.from("trips").insert(tripData);
+            if (insertError) console.error("Trips Insert Error: ", insertError);
+          } catch(e) {
+            console.error("AI Response JSON Parse Error:", e);
+          }
+        } catch (error) {
+          console.error("Stream generation error:", error);
+        } finally {
+          controller.close();
+        }
+      }
+    });
 
-    const { error: insertError } = await supabase.from("trips").insert(tripData);
-
-    if (insertError) {
-      throw new Error(insertError.message);
-    }
-
-    return new Response(JSON.stringify({ tripId: body.tripId }), {
+    return new Response(stream, {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";
