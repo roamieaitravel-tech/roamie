@@ -1,5 +1,7 @@
 import { OpenAI } from "openai";
 import { createClient } from "@/lib/supabase/server";
+import { ratelimit } from "@/lib/rate-limit";
+import * as Sentry from "@sentry/nextjs";
 
 const systemPrompt = `You are Roamie AI, the world's best budget travel planning expert.
 Your mission: Create the most value-packed trip plan possible within the given budget.
@@ -163,6 +165,17 @@ Return only a clean JSON object exactly matching the schema provided in the syst
 }
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  
+  // AI routes: 10 requests per minute
+  const { success } = ratelimit(ip, { interval: 60000, limit: 10 });
+  if (!success) {
+    return new Response(JSON.stringify({ error: "Too many requests" }), {
+      status: 429,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const body = await parseBody(request);
     const apiKey = process.env.OPENAI_API_KEY;
@@ -251,6 +264,8 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    console.error("Plan Trip Error:", error);
+    Sentry.captureException(error);
     const message = error instanceof Error ? error.message : "Unknown error.";
     return new Response(JSON.stringify({ error: message }), {
       status: 400,

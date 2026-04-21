@@ -1,4 +1,6 @@
 import { OpenAI } from "openai";
+import { ratelimit } from "@/lib/rate-limit";
+import * as Sentry from "@sentry/nextjs";
 
 const systemPrompt = `You are Roamie, a friendly and knowledgeable AI travel planner. Your role is to:
 
@@ -219,6 +221,17 @@ function generateMockTripPlan(info: {
 }
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  
+  // AI routes: 10 requests per minute
+  const { success } = ratelimit(ip, { interval: 60000, limit: 10 });
+  if (!success) {
+    return new Response(JSON.stringify({ error: "Too many requests" }), {
+      status: 429,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const body = await request.json();
     const { message, conversationHistory } = body;
@@ -301,6 +314,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Error:", error);
+    Sentry.captureException(error);
     const message =
       error instanceof Error ? error.message : "Unknown error occurred";
     return new Response(JSON.stringify({ error: message }), {

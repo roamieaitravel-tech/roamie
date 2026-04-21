@@ -1,7 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { ratelimit } from '@/lib/rate-limit';
+import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  
+  // Auth routes: 5 requests per minute
+  const { success } = ratelimit(ip, { interval: 60000, limit: 5 });
+  if (!success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   try {
     const supabase = await createClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -36,6 +46,7 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('Supabase upsert error:', error);
+      Sentry.captureException(error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -51,11 +62,15 @@ export async function POST(request: Request) {
           name: formData.name
         }
       })
-    }).catch(e => console.error("Dispatch mapping failed", e));
+    }).catch(e => {
+      console.error("Dispatch mapping failed", e);
+      Sentry.captureException(e);
+    });
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('API Error:', error);
+    Sentry.captureException(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

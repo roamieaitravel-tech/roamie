@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { searchFlights } from "@/lib/amadeus";
 import { getMockFlights, FlightOption } from "@/utils/api/flights";
+import { ratelimit } from "@/lib/rate-limit";
+import * as Sentry from "@sentry/nextjs";
 
 const searchSchema = z.object({
   origin: z.string().length(3, "Origin must be a 3-letter IATA code").toUpperCase(),
@@ -27,6 +29,14 @@ function formatAmadeusTime(isoDate: string): string {
 }
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  
+  // Search routes: 30 requests per minute
+  const { success } = ratelimit(ip, { interval: 60000, limit: 30 });
+  if (!success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const payload = await request.json();
     const validated = searchSchema.parse(payload);
@@ -96,6 +106,7 @@ export async function POST(request: Request) {
          console.warn("Gracefully routing to mock fallbacks. Amadeus ENV values are explicitly null.");
       } else {
          console.error("Amadeus Gateway Transport Exception:", apiError);
+         Sentry.captureException(apiError);
       }
       
       // Fallback explicitly delivering mock payload transparently protecting UI capabilities
@@ -106,6 +117,8 @@ export async function POST(request: Request) {
     }
 
   } catch (error) {
+    console.error("Flight Search Logic Error:", error);
+    Sentry.captureException(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
     }
