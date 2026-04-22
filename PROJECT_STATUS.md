@@ -3,7 +3,7 @@
 **Generated**: January 2025  
 **Project**: Roamie - AI Travel Companion Matching & Booking Platform  
 **Status**: 🟢 Production Ready - Phase 3 Complete  
-**Live URL**: https://roamie-three.vercel.app
+**Live URL**: https://roamie.netlify.app
 
 ---
 
@@ -395,7 +395,7 @@ Function Documentation: 100%
 - **Last Deploy**: January 2025
 
 ### Live Site
-- **URL**: https://roamie-three.vercel.app
+- **URL**: https://roamie.netlify.app
 - **Status**: ✅ Active
 - **Auto-Deploy**: On git push to master
 - **Deploy Time**: 45-60 seconds

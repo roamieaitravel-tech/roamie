@@ -3,7 +3,7 @@
 ## Project Overview
 Roamie is an AI-powered travel companion matching and booking platform built with Next.js 16, React 19, Supabase, OpenAI, and Stripe.
 
-**Live Site**: https://roamie-three.vercel.app  
+**Live Site**: https://roamie.netlify.app  
 **GitHub**: https://github.com/roamieaitravel-tech/roamie
 
 ---
@@ -504,7 +504,7 @@ git push origin master
 
 For questions or contributions:
 - GitHub Issues: https://github.com/roamieaitravel-tech/roamie/issues
-- Live Site: https://roamie-three.vercel.app
+- Live Site: https://roamie.netlify.app
 
 ---
 
