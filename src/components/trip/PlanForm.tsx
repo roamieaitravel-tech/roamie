@@ -49,7 +49,7 @@ export default function PlanForm({ submitting, onSubmit }: PlanFormProps) {
     setValue,
     watch,
     formState: { errors },
-  } = useForm<PlanFormValues>({
+  } = useForm({
     resolver: zodResolver(planTripSchema),
     defaultValues,
     mode: "onChange",
@@ -67,7 +67,7 @@ export default function PlanForm({ submitting, onSubmit }: PlanFormProps) {
   }, [transportTypes, setValue]);
 
   const updateCount = (field: "adults" | "children", delta: number) => {
-    const current = field === "adults" ? adults : children;
+    const current = (field === "adults" ? adults : children) ?? 0;
     const nextValue = Math.max(0, current + delta);
     if (field === "adults" && nextValue === 0) return;
     setValue(field, nextValue);

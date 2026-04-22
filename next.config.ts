@@ -25,6 +25,5 @@ export default withSentryConfig(nextConfig, {
   project: "roamie-nextjs",
   silent: !process.env.CI,
   widenClientFileUpload: true,
-  hideSourceMaps: true,
   disableLogger: true,
 });

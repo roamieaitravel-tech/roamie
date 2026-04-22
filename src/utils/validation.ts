@@ -305,7 +305,7 @@ export const planTripSchema = z.object({
   children: z.number().min(0).max(50).default(0),
   budgetPerPerson: z.number().min(50, "Minimum budget is $50").max(1000000, "Maximum budget is $1,000,000"),
   transportTypes: z.array(z.enum(["plane", "train", "cruise"])).min(1, "Select at least one transport type"),
-  travelStyle: z.enum(["Budget", "Comfort", "Premium"], { required_error: "Please select a travel style" }),
+  travelStyle: z.enum(["Budget", "Comfort", "Premium"]),
   specialRequests: z.string().max(1000).optional(),
 }).refine((data) => {
   if (!data.startDate || !data.endDate) return false;

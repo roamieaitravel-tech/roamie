@@ -19,9 +19,10 @@ export async function proxy(request: NextRequest) {
   if (isProtectedRoute) {
     const authToken = request.cookies.get("sb-auth-token");
 
-    // If no auth token, redirect to login
+    // If no auth token, redirect to login using NEXT_PUBLIC_SITE_URL
     if (!authToken) {
-      const loginUrl = new URL("/login", request.url);
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
+      const loginUrl = new URL("/login", siteUrl);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
     }

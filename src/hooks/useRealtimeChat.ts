@@ -59,7 +59,7 @@ export function useRealtimeChat({ matchId, currentUserId, recipientId, initialMe
           table: "messages",
           filter: `match_id=eq.${matchId}`,
         },
-        (payload) => {
+        (payload: any) => {
           const newMessage = payload.new as ChatMessage;
           if (isMounted) {
             setMessages((current) => {
@@ -85,7 +85,7 @@ export function useRealtimeChat({ matchId, currentUserId, recipientId, initialMe
       .on(
         "broadcast",
         { event: "typing" },
-        (payload) => {
+        (payload: any) => {
           if (isMounted && payload.payload.userId !== currentUserId) {
             setIsTyping(payload.payload.isTyping);
           }
@@ -102,7 +102,7 @@ export function useRealtimeChat({ matchId, currentUserId, recipientId, initialMe
            setIsOnline(otherUsers.length > 0);
         }
       })
-      .subscribe(async (status) => {
+      .subscribe(async (status: any) => {
         if (status === "SUBSCRIBED") {
           await chatChannel.track({ online_at: new Date().toISOString() });
         }
